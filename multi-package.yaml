@@ -1,0 +1,11 @@
+# multi-package.yaml
+#
+# Required by the Daml SDK 3.x IDE language server (VS Code extension).
+# The language server scans for this file to discover the workspace
+# structure. Without it, the IDE shows:
+#   "Failed to load information from multi-package.yaml"
+#
+# This project is a single-package workspace — the dot (".") refers
+# to the synCCap package defined by daml.yaml in this same directory.
+packages:
+  - .
