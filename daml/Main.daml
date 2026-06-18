@@ -1,0 +1,364 @@
+-- | synCCap: Universal Capacity Tokenization & Privacy-Preserving Settlement
+-- |
+-- | Module: Main
+-- |
+-- | This module defines the core Daml templates for the synCCap platform,
+-- | a Canton Network application that tokenizes high-end semiconductor foundry
+-- | capacity as Real-World Assets (RWA) and enables privacy-preserving
+-- | secondary trading via a dark pool mechanism.
+-- |
+-- | Canton Propositions Demonstrated:
+-- |   1. Sub-Transaction Privacy — Secondary Buyers never see original cost basis.
+-- |   2. Multi-Party Workflows — Manufacturer, Primary Buyer, Secondary Buyer
+-- |      coordinate atomically without a central intermediary.
+-- |   3. Atomic Settlement — Capacity transfer and payment occur as an
+-- |      indivisible unit; no partial settlement is possible.
+-- |
+-- | System Roles:
+-- |   - Manufacturer: The semiconductor foundry that issues capacity tokens.
+-- |   - Primary Buyer: The original purchaser of foundry capacity.
+-- |   - Secondary Buyer: A party acquiring capacity on the dark pool.
+
+module Main where
+
+
+
+-- ============================================================================
+-- SECTION 1: ENUMERATION TYPES
+-- ============================================================================
+
+-- | Represents the fabrication technology node of the capacity.
+-- | Each node corresponds to a real semiconductor process generation.
+data TechnologyNode
+  = N3nm    -- ^ TSMC-class 3nm (e.g., Apple A17, M3)
+  | N5nm    -- ^ 5nm process (e.g., AMD Zen 4, Qualcomm Snapdragon 8 Gen 2)
+  | N7nm    -- ^ 7nm process (mature high-performance)
+  | N14nm   -- ^ 14nm process (cost-optimized)
+  deriving (Eq, Show)
+
+-- | The lifecycle status of a capacity asset on the ledger.
+data AssetStatus
+  = Active      -- ^ Capacity is committed and available for use or transfer.
+  | Transferred -- ^ Capacity has been transferred to a new owner.
+  | Penalized   -- ^ Capacity was canceled and a penalty was settled.
+  deriving (Eq, Show)
+
+
+-- ============================================================================
+-- SECTION 2: CAPACITY ASSET TEMPLATE
+-- ============================================================================
+
+-- | CapacityAsset: The core RWA token representing semiconductor foundry capacity.
+-- |
+-- | Privacy Design:
+-- |   - The `manufacturer` and `owner` are signatories, ensuring both must
+-- |     authorize any lifecycle event (creation, transfer, cancellation).
+-- |   - The `costBasisPerWafer` field is ONLY visible to the current signatories.
+-- |     When capacity is transferred to a Secondary Buyer, a NEW contract is
+-- |     created with a DIFFERENT cost basis (the transfer price), preserving
+-- |     the original buyer's pricing confidentiality.
+-- |   - No `observer` is set by default — the asset is invisible to all
+-- |     parties except the manufacturer and current owner.
+template CapacityAsset
+  with
+    -- | The foundry that issued this capacity commitment.
+    manufacturer        : Party
+    -- | The current owner of this capacity token.
+    owner               : Party
+    -- | Unique identifier for this capacity lot (e.g., "LOT-TSMC-3NM-2025Q3-001").
+    assetId             : Text
+    -- | The semiconductor process node for this capacity.
+    technologyNode      : TechnologyNode
+    -- | Number of wafer starts per month allocated in this lot.
+    waferStartsPerMonth : Int
+    -- | The price paid per wafer by the CURRENT owner.
+    -- | PRIVACY-CRITICAL: This value is never revealed to subsequent buyers.
+    -- | Each transfer creates a new contract with the transfer price as cost basis.
+    costBasisPerWafer   : Decimal
+    -- | ISO-8601 date string for when this capacity commitment begins.
+    commitmentStartDate : Text
+    -- | ISO-8601 date string for when this capacity commitment ends.
+    commitmentEndDate   : Text
+    -- | Current lifecycle status of this asset.
+    status              : AssetStatus
+  where
+    -- Both manufacturer and owner must authorize all lifecycle transitions.
+    -- This enforces dual-control: the foundry cannot unilaterally reassign
+    -- capacity, and the owner cannot forge new capacity tokens.
+    signatory manufacturer, owner
+
+    -- -----------------------------------------------------------------------
+    -- Choice: ProposeTransfer
+    -- -----------------------------------------------------------------------
+    -- | The current owner initiates a Request-for-Quote (RFQ) to sell this
+    -- | capacity on the dark pool. This choice:
+    -- |   1. Archives the current CapacityAsset (consuming choice).
+    -- |   2. Creates a TransferRFQ visible ONLY to the manufacturer and the
+    -- |      prospective secondary buyer.
+    -- |   3. The Secondary Buyer can see the RFQ details (wafer count, node,
+    -- |      dates, asking price) but NEVER the original costBasisPerWafer.
+    -- |
+    -- | Canton Privacy: The TransferRFQ contract has different signatories
+    -- | than the original asset, demonstrating sub-transaction privacy.
+    -- | The secondary buyer sees the RFQ but not the archived CapacityAsset.
+    choice ProposeTransfer : ContractId TransferRFQ
+      with
+        -- | The party to whom capacity is being offered.
+        secondaryBuyer : Party
+        -- | The asking price per wafer (set by the Primary Buyer).
+        -- | This is the ONLY price the Secondary Buyer will ever see.
+        askingPricePerWafer : Decimal
+      controller owner
+      do
+        -- Validate the asset is in a transferable state.
+        assertMsg "Only Active assets can be proposed for transfer"
+          (status == Active)
+        -- Validate asking price is positive.
+        assertMsg "Asking price must be positive"
+          (askingPricePerWafer > 0.0)
+        -- Create the RFQ. Note: the original costBasisPerWafer is NOT
+        -- carried into the TransferRFQ, preserving pricing confidentiality.
+        create TransferRFQ with
+          manufacturer        = manufacturer
+          seller              = owner
+          buyer               = secondaryBuyer
+          assetId             = assetId
+          technologyNode      = technologyNode
+          waferStartsPerMonth = waferStartsPerMonth
+          askingPricePerWafer = askingPricePerWafer
+          commitmentStartDate = commitmentStartDate
+          commitmentEndDate   = commitmentEndDate
+
+    -- -----------------------------------------------------------------------
+    -- Choice: InitiatePenalty
+    -- -----------------------------------------------------------------------
+    -- | The owner cancels their capacity commitment, triggering a penalty
+    -- | settlement with the manufacturer. This choice:
+    -- |   1. Archives the current CapacityAsset.
+    -- |   2. Creates a PenaltyAgreement between manufacturer and owner ONLY.
+    -- |   3. No other party learns about the cancellation or penalty terms.
+    -- |
+    -- | Canton Privacy: The PenaltyAgreement is strictly bilateral.
+    -- | No secondary market participant can infer that capacity was canceled.
+    choice InitiatePenalty : ContractId PenaltyAgreement
+      with
+        -- | Penalty rate as a decimal (e.g., 0.25 = 25% of total commitment value).
+        penaltyRate : Decimal
+        -- | Human-readable reason for the cancellation.
+        cancellationReason : Text
+      controller owner
+      do
+        assertMsg "Only Active assets can be penalized"
+          (status == Active)
+        assertMsg "Penalty rate must be between 0 and 1"
+          (penaltyRate > 0.0 && penaltyRate <= 1.0)
+        -- Calculate the total penalty amount.
+        -- Formula: waferStarts * costBasis * penaltyRate
+        let totalCommitmentValue = (intToDecimal waferStartsPerMonth) * costBasisPerWafer
+        let penaltyAmount = totalCommitmentValue * penaltyRate
+        create PenaltyAgreement with
+          manufacturer       = manufacturer
+          penalizedParty     = owner
+          assetId            = assetId
+          technologyNode     = technologyNode
+          penaltyRate        = penaltyRate
+          penaltyAmount      = penaltyAmount
+          cancellationReason = cancellationReason
+          isSettled          = False
+
+
+-- ============================================================================
+-- SECTION 3: TRANSFER RFQ TEMPLATE (Dark Pool Mechanism)
+-- ============================================================================
+
+-- | TransferRFQ: A Request-for-Quote representing a dark pool offer.
+-- |
+-- | Privacy Design:
+-- |   - The `seller` and `manufacturer` are signatories (both must agree).
+-- |   - The `buyer` is an observer — they can SEE the RFQ details (technology
+-- |     node, wafer count, asking price, dates) but they CANNOT see:
+-- |       (a) The seller's original CapacityAsset contract.
+-- |       (b) The seller's original costBasisPerWafer.
+-- |   - This is the dark pool in action: the buyer knows what is for sale
+-- |     and at what price, but has zero visibility into the seller's margin
+-- |     or the foundry's original pricing terms.
+-- |
+-- | Canton Sub-Transaction Privacy:
+-- |   When ProposeTransfer is exercised, the Secondary Buyer sees ONLY the
+-- |   creation of this TransferRFQ contract. The archival of the original
+-- |   CapacityAsset (which contains costBasisPerWafer) happens in a
+-- |   sub-transaction that is invisible to the buyer's participant node.
+template TransferRFQ
+  with
+    -- | The foundry validating the transfer.
+    manufacturer        : Party
+    -- | The current capacity holder offering to sell.
+    seller              : Party
+    -- | The prospective new owner.
+    buyer               : Party
+    -- | Lot identifier carried forward from the CapacityAsset.
+    assetId             : Text
+    -- | Technology node of the capacity.
+    technologyNode      : TechnologyNode
+    -- | Monthly wafer allocation being offered.
+    waferStartsPerMonth : Int
+    -- | The price per wafer visible to the buyer.
+    -- | This is the ONLY price reference point the buyer has.
+    askingPricePerWafer : Decimal
+    -- | Commitment start date.
+    commitmentStartDate : Text
+    -- | Commitment end date.
+    commitmentEndDate   : Text
+  where
+    -- Seller and manufacturer must both authorize the RFQ.
+    -- The manufacturer's signature ensures foundry-level approval of the transfer.
+    signatory manufacturer, seller
+    -- The buyer can observe the RFQ to evaluate and accept/reject it.
+    -- They see askingPricePerWafer, NOT the original costBasisPerWafer.
+    observer buyer
+
+    -- -----------------------------------------------------------------------
+    -- Choice: AcceptTransfer (Atomic Settlement)
+    -- -----------------------------------------------------------------------
+    -- | The buyer accepts the RFQ, triggering atomic settlement:
+    -- |   1. This TransferRFQ contract is archived (consumed).
+    -- |   2. A NEW CapacityAsset is created with the BUYER as owner.
+    -- |   3. The new asset's costBasisPerWafer is set to the askingPricePerWafer,
+    -- |      NOT the original seller's cost. This is the privacy firewall.
+    -- |
+    -- | Canton Atomic Settlement:
+    -- |   Both the archival of the RFQ and the creation of the new asset
+    -- |   happen in a single, atomic transaction. There is no intermediate
+    -- |   state where capacity exists without an owner or where the buyer
+    -- |   has paid without receiving the asset.
+    choice AcceptTransfer : ContractId CapacityAsset
+      with
+        -- | The final negotiated price (may differ from asking price).
+        agreedPricePerWafer : Decimal
+      controller buyer
+      do
+        assertMsg "Agreed price must be positive"
+          (agreedPricePerWafer > 0.0)
+        -- Atomic creation of the new CapacityAsset for the buyer.
+        -- Note: costBasisPerWafer is set to the AGREED transfer price.
+        -- The original seller's cost basis is permanently severed.
+        create CapacityAsset with
+          manufacturer        = manufacturer
+          owner               = buyer
+          assetId             = assetId
+          technologyNode      = technologyNode
+          waferStartsPerMonth = waferStartsPerMonth
+          costBasisPerWafer   = agreedPricePerWafer
+          commitmentStartDate = commitmentStartDate
+          commitmentEndDate   = commitmentEndDate
+          status              = Active
+
+    -- -----------------------------------------------------------------------
+    -- Choice: RejectTransfer
+    -- -----------------------------------------------------------------------
+    -- | The buyer declines the offer. The RFQ is archived and the original
+    -- | CapacityAsset should be reinstated by the seller (handled off-ledger
+    -- | or via a separate restoration workflow in production).
+    choice RejectTransfer : ()
+      controller buyer
+      do
+        -- In production, this would trigger a callback to restore the
+        -- original CapacityAsset. For the hackathon demo, we simply
+        -- archive the RFQ, demonstrating clean lifecycle management.
+        return ()
+
+    -- -----------------------------------------------------------------------
+    -- Choice: WithdrawRFQ
+    -- -----------------------------------------------------------------------
+    -- | The seller withdraws their offer before the buyer acts.
+    -- | Only the seller can exercise this choice.
+    choice WithdrawRFQ : ()
+      controller seller
+      do
+        return ()
+
+
+-- ============================================================================
+-- SECTION 4: PENALTY AGREEMENT TEMPLATE
+-- ============================================================================
+
+-- | PenaltyAgreement: A confidential bilateral contract for capacity cancellation.
+-- |
+-- | Privacy Design:
+-- |   - ONLY the manufacturer and the penalized party are signatories.
+-- |   - No observers are defined — this contract is completely invisible
+-- |     to all other network participants.
+-- |   - A competitor acting as a Secondary Buyer in the dark pool has
+-- |     ZERO knowledge that this cancellation occurred or what the
+-- |     penalty terms are.
+-- |
+-- | Business Context:
+-- |   Canceling high-end fab capacity is extremely costly. The penalty
+-- |   rate reflects the manufacturer's opportunity cost (idle fab time,
+-- |   reagent waste, scheduling disruption). Keeping this confidential
+-- |   prevents competitors from inferring financial distress.
+template PenaltyAgreement
+  with
+    -- | The foundry owed the penalty payment.
+    manufacturer       : Party
+    -- | The party who canceled their capacity commitment.
+    penalizedParty     : Party
+    -- | Reference to the original capacity lot.
+    assetId            : Text
+    -- | Technology node of the canceled capacity.
+    technologyNode     : TechnologyNode
+    -- | The penalty rate applied (e.g., 0.25 = 25%).
+    penaltyRate        : Decimal
+    -- | The calculated penalty amount in base currency units.
+    penaltyAmount      : Decimal
+    -- | Human-readable reason for the cancellation.
+    cancellationReason : Text
+    -- | Whether the penalty payment has been confirmed.
+    isSettled          : Bool
+  where
+    -- Strictly bilateral: only manufacturer and the penalized party.
+    -- No observers, no information leakage to any third party.
+    signatory manufacturer, penalizedParty
+
+    -- -----------------------------------------------------------------------
+    -- Choice: SettlePenalty
+    -- -----------------------------------------------------------------------
+    -- | The manufacturer confirms receipt of the penalty payment.
+    -- | This creates a settled version of the agreement for record-keeping.
+    -- |
+    -- | In production, this would integrate with a payment rail (e.g.,
+    -- | Canton's atomic delivery-vs-payment with a cash token).
+    choice SettlePenalty : ContractId PenaltyAgreement
+      controller manufacturer
+      do
+        assertMsg "Penalty is already settled" (not isSettled)
+        create this with
+          isSettled = True
+
+    -- -----------------------------------------------------------------------
+    -- Choice: DisputePenalty
+    -- -----------------------------------------------------------------------
+    -- | The penalized party disputes the penalty calculation.
+    -- | Archives the current agreement and creates a new one with
+    -- | an updated rate, requiring manufacturer re-approval.
+    choice DisputePenalty : ContractId PenaltyAgreement
+      with
+        -- | The counter-proposed penalty rate.
+        proposedRate : Decimal
+        -- | Justification for the dispute.
+        disputeReason : Text
+      controller penalizedParty
+      do
+        assertMsg "Proposed rate must be between 0 and 1"
+          (proposedRate > 0.0 && proposedRate <= 1.0)
+        assertMsg "Cannot dispute an already settled penalty"
+          (not isSettled)
+        -- Recalculate penalty with the proposed rate.
+        -- Note: we derive the original commitment value from the existing data.
+        let originalCommitmentValue = penaltyAmount / penaltyRate
+        let newPenaltyAmount = originalCommitmentValue * proposedRate
+        create this with
+          penaltyRate        = proposedRate
+          penaltyAmount      = newPenaltyAmount
+          cancellationReason = disputeReason
+          isSettled          = False
