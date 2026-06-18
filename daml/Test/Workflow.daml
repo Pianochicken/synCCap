@@ -1,0 +1,209 @@
+-- | synCCap: Test Suite — End-to-End Workflow Simulation
+-- |
+-- | Module: Test.Workflow
+-- |
+-- | This module contains the Daml Script tests for the synCCap platform.
+-- | It is intentionally separated from the core business logic in `Main`
+-- | to maintain clean separation of concerns:
+-- |
+-- |   Main          → Pure business logic (templates, choices, types)
+-- |   Test.Workflow → Test scripts (sandbox simulation, assertions)
+-- |
+-- | Run with: `dpm test`
+
+module Test.Workflow where
+
+import Daml.Script
+import Main
+
+
+-- ============================================================================
+-- WORKFLOW TEST: Full End-to-End Sandbox Simulation
+-- ============================================================================
+
+-- | Full end-to-end test script simulating the synCCap workflow.
+-- |
+-- | This script demonstrates:
+-- |   1. Party allocation (Manufacturer, Primary Buyer, Secondary Buyer).
+-- |   2. Capacity asset issuance by the manufacturer.
+-- |   3. Dark pool transfer: Primary Buyer sells to Secondary Buyer.
+-- |   4. Privacy verification: Secondary Buyer cannot see original cost.
+-- |   5. Penalty settlement: A separate buyer cancels capacity.
+-- |
+-- | Run with: `dpm test` or via the Daml IDE (VS Code).
+testSynCCapWorkflow : Script ()
+testSynCCapWorkflow = script do
+
+  -- =========================================================================
+  -- STEP 1: Allocate Parties
+  -- =========================================================================
+  -- In a Canton deployment, these would be participant nodes on the network.
+  -- Each party's participant node stores ONLY the contracts they are
+  -- authorized to see (sub-transaction privacy).
+  manufacturer   <- allocateParty "TSMC_Foundry"
+  primaryBuyer   <- allocateParty "Apple_Inc"
+  secondaryBuyer <- allocateParty "Startup_ChipCo"
+
+  -- =========================================================================
+  -- STEP 2: Multi-Party Capacity Asset Issuance
+  -- =========================================================================
+  -- The manufacturer and primary buyer jointly create a capacity commitment.
+  -- Both are signatories; compose their authority with actAs <> actAs (Daml 3.5+ API).
+  -- costBasisPerWafer ($18,500) is visible ONLY to these two signatories.
+  -- No other party on the Canton Network can see this contract.
+  capacityAssetCid <- submit (actAs manufacturer <> actAs primaryBuyer) do
+    createCmd CapacityAsset with
+      manufacturer        = manufacturer
+      owner               = primaryBuyer
+      assetId             = "LOT-TSMC-3NM-2025Q3-001"
+      technologyNode      = N3nm
+      waferStartsPerMonth = 500
+      costBasisPerWafer   = 18500.0              -- CONFIDENTIAL: $18,500/wafer
+      commitmentStartDate = "2025-07-01"
+      commitmentEndDate   = "2026-06-30"
+      status              = Active
+
+  -- =========================================================================
+  -- STEP 3: Primary Buyer Proposes Dark Pool Transfer
+  -- =========================================================================
+  -- Apple wants to offload 500 wafer-starts/month to Startup_ChipCo.
+  -- The asking price ($22,000) is marked up from the original $18,500 cost.
+  -- Startup_ChipCo will NEVER know that Apple paid $18,500.
+  -- They will only see the $22,000 asking price on the TransferRFQ.
+  transferRfqCid <- submit (actAs manufacturer <> actAs primaryBuyer) do
+    exerciseCmd capacityAssetCid ProposeTransfer with
+      secondaryBuyer      = secondaryBuyer
+      askingPricePerWafer = 22000.0              -- Marked up from $18,500
+
+  -- =========================================================================
+  -- STEP 4: Secondary Buyer Accepts the Transfer (Atomic Settlement)
+  -- =========================================================================
+  -- Startup_ChipCo sees: 500 wafer-starts/month, 3nm, at $22,000/wafer.
+  -- Startup_ChipCo does NOT see: Apple's original $18,500 cost basis.
+  --
+  -- Canton Atomic Settlement: The TransferRFQ is archived AND the new
+  -- CapacityAsset is created in a single indivisible transaction.
+  -- There is no point in time where capacity exists in limbo.
+  newAssetCid <- submit secondaryBuyer do
+    exerciseCmd transferRfqCid AcceptTransfer with
+      agreedPricePerWafer = 21500.0              -- Negotiated down to $21,500
+
+  -- =========================================================================
+  -- STEP 5: Verify Privacy — Query Contracts by Party
+  -- =========================================================================
+  -- This demonstrates Canton's sub-transaction privacy:
+  --   - Startup_ChipCo can query their new CapacityAsset.
+  --   - The costBasisPerWafer on their contract is $21,500 (what THEY paid).
+  --   - There is NO contract on their participant node showing $18,500.
+
+  -- Query the new asset from the secondary buyer's perspective.
+  newAssets <- queryFilter @CapacityAsset secondaryBuyer
+    (\a -> a.assetId == "LOT-TSMC-3NM-2025Q3-001")
+  -- Verify the secondary buyer's cost basis is the agreed transfer price.
+  let [(_, newAsset)] = newAssets
+  assertMsg "Secondary buyer's cost basis should be the agreed transfer price"
+    (newAsset.costBasisPerWafer == 21500.0)
+  assertMsg "Secondary buyer should be the new owner"
+    (newAsset.owner == secondaryBuyer)
+
+  -- Verify that the PRIMARY BUYER's original asset is no longer active.
+  -- (It was consumed by ProposeTransfer.)
+  oldAssets <- queryFilter @CapacityAsset primaryBuyer
+    (\a -> a.assetId == "LOT-TSMC-3NM-2025Q3-001")
+  assertMsg "Primary buyer should have no active capacity for this lot"
+    (null oldAssets)
+
+  -- =========================================================================
+  -- STEP 6: Penalty Workflow — A Different Primary Buyer Cancels
+  -- =========================================================================
+  -- Create a second capacity lot for a penalty demo.
+  penaltyAssetCid <- submit (actAs manufacturer <> actAs primaryBuyer) do
+    createCmd CapacityAsset with
+      manufacturer        = manufacturer
+      owner               = primaryBuyer
+      assetId             = "LOT-TSMC-5NM-2025Q4-007"
+      technologyNode      = N5nm
+      waferStartsPerMonth = 200
+      costBasisPerWafer   = 12000.0              -- CONFIDENTIAL: $12,000/wafer
+      commitmentStartDate = "2025-10-01"
+      commitmentEndDate   = "2026-09-30"
+      status              = Active
+
+  -- Primary Buyer cancels this commitment (e.g., product line was discontinued).
+  -- Penalty rate: 30% of total monthly commitment value.
+  -- This is a BILATERAL contract — Startup_ChipCo has ZERO visibility.
+  penaltyAgreementCid <- submit (actAs manufacturer <> actAs primaryBuyer) do
+    exerciseCmd penaltyAssetCid InitiatePenalty with
+      penaltyRate        = 0.30
+      cancellationReason = "Product line EOS — Raptor Lake successor canceled"
+
+  -- =========================================================================
+  -- STEP 7: Verify Penalty Privacy
+  -- =========================================================================
+  -- The secondary buyer should have NO visibility into the penalty agreement.
+  penalties <- queryFilter @PenaltyAgreement secondaryBuyer
+    (\p -> p.assetId == "LOT-TSMC-5NM-2025Q4-007")
+  assertMsg "Secondary buyer must NOT see any penalty agreements"
+    (null penalties)
+
+  -- The manufacturer and primary buyer CAN see the penalty agreement.
+  mfgPenalties <- queryFilter @PenaltyAgreement manufacturer
+    (\p -> p.assetId == "LOT-TSMC-5NM-2025Q4-007")
+  let [(_, penalty)] = mfgPenalties
+  -- Verify penalty calculation: 200 wafers * $12,000 * 0.30 = $720,000
+  assertMsg "Penalty amount should be $720,000"
+    (penalty.penaltyAmount == 720000.0)
+  assertMsg "Penalty should not yet be settled"
+    (not penalty.isSettled)
+
+  -- =========================================================================
+  -- STEP 8: Manufacturer Settles the Penalty
+  -- =========================================================================
+  -- After receiving payment off-chain (or via a cash token in production),
+  -- the manufacturer marks the penalty as settled.
+  settledPenaltyCid <- submit (actAs manufacturer <> actAs primaryBuyer) do
+    exerciseCmd penaltyAgreementCid SettlePenalty
+
+  -- Verify settlement status.
+  settledPenalties <- queryFilter @PenaltyAgreement manufacturer
+    (\p -> p.assetId == "LOT-TSMC-5NM-2025Q4-007" && p.isSettled)
+  assertMsg "There should be exactly one settled penalty for this lot"
+    (length settledPenalties == 1)
+
+  -- =========================================================================
+  -- STEP 9: Final Privacy Audit
+  -- =========================================================================
+  -- Comprehensive check: enumerate what each party can see.
+
+  -- Startup_ChipCo (Secondary Buyer) should see:
+  --   ✓ Their own CapacityAsset (LOT-001, cost basis $21,500)
+  --   ✗ No original Apple cost basis ($18,500)
+  --   ✗ No penalty agreements whatsoever
+  allSecondaryAssets <- query @CapacityAsset secondaryBuyer
+  allSecondaryPenalties <- query @PenaltyAgreement secondaryBuyer
+  assertMsg "Secondary buyer should see exactly 1 capacity asset"
+    (length allSecondaryAssets == 1)
+  assertMsg "Secondary buyer should see zero penalty agreements"
+    (null allSecondaryPenalties)
+
+  -- Manufacturer should see:
+  --   ✓ The transferred asset (now owned by secondaryBuyer)
+  --   ✓ The settled penalty agreement
+  allMfgAssets <- query @CapacityAsset manufacturer
+  allMfgPenalties <- query @PenaltyAgreement manufacturer
+  assertMsg "Manufacturer should see 1 active capacity asset"
+    (length allMfgAssets == 1)
+  assertMsg "Manufacturer should see 1 penalty agreement (settled)"
+    (length allMfgPenalties == 1)
+
+  -- Log success.
+  debug "============================================="
+  debug "  synCCap Phase 1: All Tests PASSED ✓"
+  debug "  - Capacity issuance: OK"
+  debug "  - Dark pool transfer: OK"
+  debug "  - Privacy firewall (cost basis): OK"
+  debug "  - Penalty settlement: OK"
+  debug "  - Sub-transaction privacy: OK"
+  debug "============================================="
+
+  return ()
