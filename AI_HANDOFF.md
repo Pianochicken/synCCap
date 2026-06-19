@@ -1,6 +1,6 @@
 # synCCap — AI Handoff Document
 
-> **Last Updated:** Phase 1 Complete  
+> **Last Updated:** Phase 2 Complete  
 > **Project:** synCCap — Universal Capacity Tokenization & Privacy-Preserving Settlement  
 > **Hackathon:** Canton Network Hackathon  
 > **Demo Vertical:** High-End Semiconductor Foundry Capacity (RWA)
@@ -17,7 +17,7 @@ Phase 1 delivers the complete Daml smart contract layer for the synCCap platform
 
 | File | Purpose |
 |:-----|:--------|
-| `daml.yaml` | Project configuration targeting Daml SDK 3.4.9 with `daml-script` dependency |
+| `daml.yaml` | Project configuration targeting Daml SDK 3.5.1 with `daml-script` dependency |
 | `daml/Main.daml` | Core templates, choices, enumerations, and end-to-end Daml Script test |
 
 ### Architecture Decisions
@@ -25,7 +25,7 @@ Phase 1 delivers the complete Daml smart contract layer for the synCCap platform
 #### Templates (3 Core Contracts)
 
 1. **`CapacityAsset`** — The RWA token representing semiconductor foundry capacity.
-   - **Signatories:** `manufacturer`, `owner` (-control authorizdualation)
+   - **Signatories:** `manufacturer`, `owner` (dual-control authorization)
    - **Observers:** None (invisible to non-stakeholders by default)
    - **Privacy-Critical Field:** `costBasisPerWafer` — NEVER carried forward during transfers
    - **Choices:**
@@ -78,9 +78,107 @@ The `testSynCCapWorkflow` script in `Main.daml` validates:
 ### How to Run
 
 ```bash
-# Ensure Daml SDK 3.4.9+ is installed
-daml test        # Runs all Daml Script tests in the sandbox
-daml studio      # Opens the Daml IDE with inline test execution
+# Ensure Daml SDK 3.5.1+ is installed
+dpm test        # Runs all Daml Script tests in the sandbox
+dpm studio      # Opens the Daml IDE with inline test execution
+```
+
+---
+
+## Phase 2 Summary: Node.js/TypeScript Integration Layer ✅
+
+### What Was Built
+
+Phase 2 delivers a production-structured Express.js REST API that bridges HTTP clients to the Canton Daml ledger. The integration layer uses the **Canton JSON Ledger API v2** directly (the legacy `@daml/ledger` npm package is not compatible with Canton 3.x).
+
+### Key Architecture Decision: Canton JSON API v2
+
+The `@daml/ledger` npm package stopped at version 2.10.4 and is **incompatible** with Canton SDK 3.x. The recommended approach (per Canton docs) is to use raw HTTP against the JSON Ledger API v2 endpoints:
+
+- **`POST /v2/commands/submit-and-wait`** — Create contracts & exercise choices
+- **`POST /v2/state/active-contracts`** — Query the Active Contract Set (ACS)
+- **`GET /v2/state/ledger-end`** — Get the current ledger offset
+
+Template IDs use the fully qualified format: `packageId:ModuleName:TemplateName`.
+
+### Files Created/Modified
+
+| File | Purpose |
+|:-----|:--------|
+| `backend/package.json` | Dependencies: `@daml/types@3.5.1`, `express`, `zod`, `jsonwebtoken`, `winston`, `helmet`, `cors`, `express-rate-limit` |
+| `backend/tsconfig.json` | Strict TypeScript with path alias for codegen output |
+| `backend/.env.example` | Environment variable documentation |
+| `backend/jest.config.js` | Jest + ts-jest configuration with codegen module mapping |
+| `backend/src/config.ts` | Validated runtime configuration from environment variables |
+| `backend/src/logger.ts` | Winston structured logger (JSON prod / pretty dev) |
+| `backend/src/validators.ts` | Zod schemas for all API request bodies |
+| `backend/src/middleware/auth.ts` | JWT → `PartyContext` middleware + sandbox token issuer |
+| `backend/src/services/LedgerService.ts` | **Core service layer** — Canton JSON API v2 client |
+| `backend/src/routes/api.ts` | REST API routes (`/api/v1/...`) with Zod validation |
+| `backend/src/routes/auth-routes.ts` | Sandbox token issuance endpoint |
+| `backend/src/app.ts` | Express app factory (testable, no listener binding) |
+| `backend/src/server.ts` | Server entrypoint with graceful shutdown |
+| `backend/tests/integration/api.integration.test.ts` | 27 tests (15 pass, 12 require sandbox) |
+| `backend/daml.js/` | Generated TypeScript bindings from `daml codegen js` |
+
+### REST API Endpoints
+
+| Endpoint | Method | Auth | Description |
+|:---------|:-------|:-----|:------------|
+| `/health` | GET | No | Service health check |
+| `/auth/token` | POST | No | Issue sandbox JWT for a party |
+| `/api/v1/assets` | POST | Yes | Create a CapacityAsset |
+| `/api/v1/assets` | GET | Yes | Query assets visible to party |
+| `/api/v1/transfers/propose` | POST | Yes | Create a TransferRFQ (dark pool) |
+| `/api/v1/transfers/accept` | POST | Yes | Accept RFQ (atomic settlement) |
+| `/api/v1/transfers` | GET | Yes | Query transfer RFQs |
+| `/api/v1/penalties/initiate` | POST | Yes | Create a PenaltyAgreement |
+| `/api/v1/penalties/settle` | POST | Yes | Settle a penalty |
+| `/api/v1/penalties` | GET | Yes | Query penalty agreements |
+
+### Service Layer Design
+
+`LedgerService` is the sole module that communicates with Canton. Key design:
+- **Decoupled from Express** — accepts `PartyContext`, returns typed results.
+- **Per-request HTTP client** — ensures party-scoped operations (Canton requires it).
+- **Template IDs** — constructed from the codegen `packageId` constant.
+- **NDJSON response handling** — the ACS endpoint returns newline-delimited JSON.
+- **All Numeric fields as strings** — preserves decimal precision for financial values.
+
+### Test Coverage
+
+| Test Category | Count | Status |
+|:--------------|:------|:-------|
+| Token issuance (POST /auth/token) | 4 | ✅ Pass |
+| Health check | 1 | ✅ Pass |
+| JWT middleware (401 cases) | 3 | ✅ Pass |
+| Request validation (400 cases) | 6 | ✅ Pass |
+| 404 handling | 1 | ✅ Pass |
+| Ledger integration (full lifecycle) | 12 | ⏭️ Skip (requires sandbox) |
+
+### How to Run
+
+```bash
+cd backend
+
+# Install dependencies
+npm install
+
+# Copy and configure environment
+cp .env.example .env
+
+# Start development server
+npm run dev
+
+# Run core backend tests (skips ledger integration)
+npm test
+
+# Run full integration tests (requires Canton sandbox)
+# First: dpm sandbox --json-api-port 7575 --dar ../.daml/dist/synccap-0.1.0.dar
+npm run test:ledger
+
+# Type check
+npx tsc --noEmit
 ```
 
 ---
@@ -89,22 +187,47 @@ daml studio      # Opens the Daml IDE with inline test execution
 
 ```
 synCCap/
-├── daml.yaml              # Project config (SDK 3.4.9)
+├── daml.yaml                        # Daml project config (SDK 3.5.1)
+├── multi-package.yaml               # IDE workspace config
 ├── daml/
-│   └── Main.daml          # Templates + Daml Script (558 lines)
-└── AI_HANDOFF.md          # This file
+│   └── Main.daml                    # Templates + Daml Script (365 lines)
+├── backend/
+│   ├── package.json                 # Node.js project config
+│   ├── tsconfig.json                # Strict TypeScript config
+│   ├── jest.config.js               # Test configuration
+│   ├── .env.example                 # Environment variable documentation
+│   ├── daml.js/                     # Generated TypeScript bindings
+│   │   ├── synccap-0.1.0/           # Main module bindings
+│   │   └── ...                      # Stdlib/prim dependencies
+│   ├── src/
+│   │   ├── config.ts                # Runtime configuration
+│   │   ├── logger.ts                # Winston structured logger
+│   │   ├── validators.ts            # Zod request validation schemas
+│   │   ├── app.ts                   # Express app factory
+│   │   ├── server.ts                # Server entrypoint
+│   │   ├── middleware/
+│   │   │   └── auth.ts              # JWT → PartyContext middleware
+│   │   ├── routes/
+│   │   │   ├── api.ts               # REST API routes
+│   │   │   └── auth-routes.ts       # Sandbox token endpoint
+│   │   └── services/
+│   │       └── LedgerService.ts     # Canton JSON API v2 client
+│   └── tests/
+│       └── integration/
+│           └── api.integration.test.ts  # 27 integration tests
+└── AI_HANDOFF.md                    # This file
 ```
 
 - **Smart Contract Layer:** ✅ Complete
-- **Integration Layer:** ⬜ Not started (Phase 2)
+- **Integration Layer:** ✅ Complete
 - **Frontend UI:** ⬜ Not started (Phase 3)
 - **Demo Flow:** ⬜ Not started (Phase 4)
 
 ---
 
-## Phase 2 Prompt: Node.js/TypeScript Integration Layer
+## Phase 3 Prompt: React Frontend
 
-Copy and paste the following prompt to initiate Phase 2:
+Copy and paste the following prompt to initiate Phase 3:
 
 ---
 
@@ -116,36 +239,34 @@ You are a Lead Web3 Architect and Senior Full-Stack Engineer, specializing in th
 I am building "synCCap" for a Canton Network Hackathon.
 * Core Concept: Universal capacity tokenization (RWA) and privacy-preserving settlement.
 * Demo: High-End Semiconductor Foundry Capacity.
-* Phase 1 (COMPLETE): The Daml data model is in `daml/Main.daml`. It contains:
-  - `CapacityAsset` template (RWA token with privacy-critical costBasisPerWafer)
-  - `TransferRFQ` template (dark pool mechanism with observer-based visibility)
-  - `PenaltyAgreement` template (bilateral confidential penalty settlement)
-  - Full Daml Script test validating all privacy and settlement workflows.
-* Refer to `AI_HANDOFF.md` for the complete Phase 1 summary.
+* Phase 1 (COMPLETE): Daml data model with 3 core templates (CapacityAsset, TransferRFQ, PenaltyAgreement) and comprehensive Daml Script tests. See `daml/Main.daml`.
+* Phase 2 (COMPLETE): Node.js/TypeScript integration layer with Express REST API and Canton JSON Ledger API v2 client. See `backend/` directory.
+* The backend REST API is at `http://localhost:3000` with endpoints documented in `AI_HANDOFF.md`.
+* Refer to `AI_HANDOFF.md` for the complete Phase 1 and Phase 2 summaries.
 
-[Phase 2: Node.js/TypeScript Integration Layer (Current Task)]
-Your task right now is to execute Phase 2 exclusively.
-* 1. Set up a Node.js/TypeScript project in a `backend/` directory with proper tsconfig.json and package.json.
-* 2. Generate Daml TypeScript bindings from the compiled `.dar` file (using `daml codegen js`).
-* 3. Create a typed service layer (`services/LedgerService.ts`) that wraps the Daml Ledger API:
-     - `createCapacityAsset()` — issues a new capacity token
-     - `proposeTransfer()` — initiates a dark pool RFQ
-     - `acceptTransfer()` — exercises atomic settlement
-     - `initiatePenalty()` — triggers penalty workflow
-     - `settlePenalty()` — confirms penalty payment
-     - `queryAssetsByParty()` — privacy-respecting asset query
-* 4. Create an Express.js REST API (`routes/api.ts`) exposing these operations as HTTP endpoints.
-* 5. Implement authentication middleware that maps HTTP requests to Daml party identities.
-* 6. Write integration tests that exercise the API against the Daml sandbox.
-* 7. Stop generating code. Update `AI_HANDOFF.md` with the Phase 2 summary and the prompt for Phase 3 (React Frontend).
+[Phase 3: React Frontend (Current Task)]
+Your task right now is to execute Phase 3 exclusively.
+* 1. Set up a React/TypeScript project in a `frontend/` directory using Vite.
+* 2. Create a multi-party dashboard that demonstrates Canton's privacy model:
+     - Party selector (switch between TSMC, AppleInc, QualcommInc perspectives)
+     - Each party sees ONLY what Canton's privacy model allows
+* 3. Implement the following views:
+     - **Asset Dashboard**: Display CapacityAssets with technology node, wafer count, cost basis
+     - **Dark Pool**: Propose transfers, view RFQs, accept/reject offers
+     - **Penalty Management**: Initiate penalties, view settlement status
+     - **Privacy Audit Panel**: Side-by-side comparison of what each party can/cannot see
+* 4. Connect all views to the backend REST API with proper auth token management.
+* 5. Style the application with a premium, dark-themed UI suitable for a financial/enterprise demo.
+* 6. Stop generating code. Update `AI_HANDOFF.md` with the Phase 3 summary and the prompt for Phase 4 (Demo Flow & Polish).
 
 [Output Constraints]
 * Use strict TypeScript with no `any` types.
-* Follow REST API best practices (proper status codes, error handling, request validation).
-* Ensure the service layer is decoupled from the HTTP layer for testability.
-* Include comprehensive JSDoc comments explaining Canton-specific integration patterns.
+* Use React functional components with hooks.
+* Implement proper loading states, error handling, and user feedback.
+* The UI must visually demonstrate Canton's privacy guarantees — show what each party can and cannot see.
+* Include comprehensive JSDoc comments explaining Canton-specific UI patterns.
 ```
 
 ---
 
-> **⚠️ Do not proceed to Phase 2 until explicitly instructed.**
+> **⚠️ Do not proceed to Phase 3 until explicitly instructed.**
