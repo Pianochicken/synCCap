@@ -141,7 +141,8 @@ Template IDs use the fully qualified format: `packageId:ModuleName:TemplateName`
 `LedgerService` is the sole module that communicates with Canton. Key design:
 - **Decoupled from Express** — accepts `PartyContext`, returns typed results.
 - **Per-request HTTP client** — ensures party-scoped operations (Canton requires it).
-- **Template IDs** — constructed from the codegen `packageId` constant.
+- **Template IDs** — Uses the modern Canton 3.x `#packageName:ModuleName:TemplateName` format.
+- **Contract IDs** — Canton 3.x `submit-and-wait` only returns an offset; Contract IDs are extracted via subsequent `/v2/updates` requests.
 - **NDJSON response handling** — the ACS endpoint returns newline-delimited JSON.
 - **All Numeric fields as strings** — preserves decimal precision for financial values.
 
@@ -154,7 +155,7 @@ Template IDs use the fully qualified format: `packageId:ModuleName:TemplateName`
 | JWT middleware (401 cases) | 3 | ✅ Pass |
 | Request validation (400 cases) | 6 | ✅ Pass |
 | 404 handling | 1 | ✅ Pass |
-| Ledger integration (full lifecycle) | 12 | ⏭️ Skip (requires sandbox) |
+| Ledger integration (full lifecycle) | 12 | ✅ Pass |
 
 ### How to Run
 

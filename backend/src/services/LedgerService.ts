@@ -62,11 +62,20 @@ type PenaltyAgreementType = Main.PenaltyAgreement;
 // Canton JSON API v2 Constants
 // ---------------------------------------------------------------------------
 
-/** Fully qualified template IDs for the Canton JSON API v2. */
+/**
+ * Template IDs for the Canton JSON API v2.
+ *
+ * Canton 3.x supports two formats:
+ *   1. Package-hash format: `<packageId>:Module:Template`  — exact package version
+ *   2. Package-name format: `#<packageName>:Module:Template` — resolves to latest vetted package
+ *
+ * We use the package-name format (`#synccap:...`) which is stable across
+ * package upgrades and is the recommended format for application code.
+ */
 const TEMPLATE_IDS = {
-  CapacityAsset: `${packageId}:Main:CapacityAsset`,
-  TransferRFQ: `${packageId}:Main:TransferRFQ`,
-  PenaltyAgreement: `${packageId}:Main:PenaltyAgreement`,
+  CapacityAsset: '#synccap:Main:CapacityAsset',
+  TransferRFQ: '#synccap:Main:TransferRFQ',
+  PenaltyAgreement: '#synccap:Main:PenaltyAgreement',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -74,41 +83,49 @@ const TEMPLATE_IDS = {
 // ---------------------------------------------------------------------------
 
 /**
- * A contract event as returned by the Canton JSON API v2.
- * This represents a single active contract in the ACS query response.
+ * A contract event as returned by the Canton JSON API v2 ACS endpoint.
  */
 interface CantonCreatedEvent {
   createdEvent: {
     contractId: string;
     templateId: string;
-    createArguments: Record<string, unknown>;
+    createArgument: Record<string, unknown>; // Note: Canton uses createArgument (not createArguments) in events
   };
 }
 
 /**
  * Response from POST /v2/commands/submit-and-wait.
- * Contains the transaction result including created/exercised events.
+ * In Canton 3.x this only returns updateId + completionOffset.
+ * To get created events, use POST /v2/updates with the offset range.
  */
 interface SubmitAndWaitResponse {
-  transaction?: {
-    events: CantonEvent[];
-  };
-  exerciseResult?: string;
+  updateId: string;
+  completionOffset: number;
 }
 
-/** Union of event types returned in transaction results. */
-interface CantonEvent {
-  createdEvent?: {
-    contractId: string;
-    templateId: string;
-    createArguments: Record<string, unknown>;
-  };
-  exercisedEvent?: {
-    contractId: string;
-    templateId: string;
-    choice: string;
-    exerciseResult: unknown;
-    childEvents?: CantonEvent[];
+/**
+ * A single update entry from POST /v2/updates.
+ */
+interface UpdateEntry {
+  update?: {
+    Transaction?: {
+      value?: {
+        events?: Array<{
+          CreatedEvent?: {
+            contractId: string;
+            templateId: string;
+            createArgument: Record<string, unknown>;
+          };
+          ExercisedEvent?: {
+            contractId: string;
+            exerciseResult?: unknown;
+            childEvents?: Array<{
+              CreatedEvent?: { contractId: string };
+            }>;
+          };
+        }>;
+      };
+    };
   };
 }
 
@@ -116,22 +133,31 @@ interface CantonEvent {
  * Response from GET /v2/state/ledger-end.
  */
 interface LedgerEndResponse {
-  offset: string;
+  offset: number;
 }
 
 /**
- * Response from POST /v2/state/active-contracts.
- * Returns a stream-like response with contract entries.
+ * A single NDJSON line from POST /v2/state/active-contracts.
+ * Canton 3.x wraps active contract events in JsActiveContract.
  */
-interface ActiveContractsResponse {
+interface ActiveContractsResponseLine {
   contractEntry?: {
-    createdEvent: {
+    /** Canton 3.x wraps the event inside JsActiveContract */
+    JsActiveContract?: {
+      createdEvent: {
+        contractId: string;
+        templateId: string;
+        createArgument: Record<string, unknown>;
+      };
+    };
+    /** Fallback for potential older format */
+    createdEvent?: {
       contractId: string;
       templateId: string;
-      createArguments: Record<string, unknown>;
+      createArgument: Record<string, unknown>;
     };
   };
-  activeAtOffset?: string;
+  streamContinuationToken?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -236,33 +262,109 @@ export class LedgerService {
   }
 
   // -------------------------------------------------------------------------
-  // Canton JSON API v2 HTTP Helpers
+  // Party Management
   // -------------------------------------------------------------------------
 
   /**
-   * Makes an authenticated HTTP request to the Canton JSON Ledger API v2.
+   * Allocates a party on the Canton sandbox (or returns its existing ID).
    *
-   * @param ctx - Party context containing the JWT token.
+   * Canton 3.x requires fully-qualified party IDs in the format:
+   *   `DisplayName::1220<fingerprint>`
+   *
+   * Simple strings like "TSMC" are NOT valid party IDs on their own.
+   * The sandbox creates a unique fingerprint for each party. This method
+   * calls the `/v2/parties` endpoint to allocate the party and returns
+   * the fully-qualified ID.
+   *
+   * @param partyHint - Human-readable name (used as the party ID hint).
+   * @returns The fully-qualified party ID (e.g., `TSMC::1220abc...`).
+   */
+  async allocateParty(partyHint: string): Promise<string> {
+    const url = `${this.baseUrl}/v2/parties`;
+
+    logger.info('Allocating party on Canton sandbox', { partyHint });
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ partyIdHint: partyHint, identityProviderId: '' }),
+    });
+
+    if (response.ok) {
+      const data = (await response.json()) as {
+        partyDetails: { party: string };
+      };
+      const partyId = data.partyDetails.party;
+      logger.info('Party allocated', { partyHint, partyId });
+      return partyId;
+    }
+
+    const errorBody = await response.text();
+
+    // Canton returns 400 INVALID_ARGUMENT if the party already exists
+    if (response.status === 400 && errorBody.includes('already exists')) {
+      logger.debug('Party already exists, fetching ID', { partyHint });
+      const listResponse = await fetch(`${this.baseUrl}/v2/parties`, {
+        method: 'GET',
+      });
+      if (listResponse.ok) {
+        const listData = (await listResponse.json()) as {
+          partyDetails: { party: string }[];
+        };
+        const found = listData.partyDetails.find((p) =>
+          p.party.startsWith(`${partyHint}::`)
+        );
+        if (found) {
+          logger.info('Using existing party ID', { partyHint, partyId: found.party });
+          return found.party;
+        }
+      }
+    }
+
+    throw new Error(
+      `Failed to allocate party "${partyHint}" (${response.status}): ${errorBody}`
+    );
+  }
+
+
+  /**
+   * Makes an HTTP request to the Canton JSON Ledger API v2.
+   *
+   * Canton sandbox note: When running `dpm sandbox` without a custom auth
+   * config, the sandbox operates WITHOUT authorization. Sending an
+   * Authorization header causes the sandbox to attempt JWT validation against
+   * its user-management service, which fails with INVALID_TOKEN because no
+   * `userId` claim is present in our party-scoped JWTs.
+   *
+   * In no-auth sandbox mode:
+   *   - No Authorization header is sent.
+   *   - Commands include a `userId` field instead.
+   *   - The sandbox accepts ANY userId string.
+   *
+   * @param ctx - Party context (used for party IDs, not forwarded as auth).
    * @param path - API endpoint path (e.g., '/v2/commands/submit-and-wait').
    * @param body - Request body to send as JSON.
    * @returns Parsed JSON response.
    * @throws Error with descriptive message if the request fails.
    */
   private async cantonFetch<T>(
-    ctx: PartyContext,
+    _ctx: PartyContext,
     path: string,
     body: Record<string, unknown>,
     method: 'POST' | 'GET' = 'POST'
   ): Promise<T> {
     const url = `${this.baseUrl}${path}`;
 
-    logger.debug('Canton API request', { method, path, party: ctx.actingParty });
+    logger.debug('Canton API request', { method, path });
 
     const response = await fetch(url, {
       method,
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${ctx.token}`,
+        // No Authorization header — dpm sandbox runs without auth.
+        // Canton validates any JWT against user-management, which fails for
+        // party-scoped tokens. The correct pattern for the no-auth sandbox
+        // is to pass userId in the command body instead.
       },
       body: method === 'POST' ? JSON.stringify(body) : undefined,
     });
@@ -289,22 +391,98 @@ export class LedgerService {
    * a consistent snapshot. This offset represents the latest committed
    * transaction on the ledger.
    */
-  private async getLedgerEnd(ctx: PartyContext): Promise<string> {
+  private async getLedgerEnd(_ctx: PartyContext): Promise<number> {
     const url = `${this.baseUrl}/v2/state/ledger-end`;
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${ctx.token}`,
-      },
-    });
+    // No Authorization header — sandbox runs without auth.
+    const response = await fetch(url, { method: 'GET' });
 
     if (!response.ok) {
-      throw new Error(`Failed to get ledger end: ${response.status}`);
+      const body = await response.text();
+      throw new Error(`Failed to get ledger end (${response.status}): ${body}`);
     }
 
     const data = (await response.json()) as LedgerEndResponse;
     return data.offset;
+  }
+
+  /**
+   * Fetches a transaction from /v2/updates and extracts the first created
+   * contract ID.
+   *
+   * Canton 3.x: submit-and-wait returns only {updateId, completionOffset}.
+   * To obtain the created contractId, fetch the transaction at that offset.
+   */
+  private async getContractIdFromUpdate(
+    ctx: PartyContext,
+    completionOffset: number
+  ): Promise<string> {
+    const url = `${this.baseUrl}/v2/updates`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        beginExclusive: completionOffset - 1,
+        endInclusive: completionOffset,
+        updateFormat: {
+          includeTransactions: {
+            transactionShape: 'TRANSACTION_SHAPE_ACS_DELTA',
+            eventFormat: {
+              filtersByParty: {
+                [ctx.actingParty]: {
+                  cumulative: [{
+                    identifierFilter: {
+                      WildcardFilter: { value: { includeCreatedEventBlob: false } },
+                    },
+                  }],
+                },
+              },
+              verbose: false,
+            },
+          },
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`Failed to fetch update at offset ${completionOffset}: ${body}`);
+    }
+
+    // The response is an array of update entries (one per NDJSON line or JSON array)
+    const text = await response.text();
+    if (!text.trim()) return 'unknown';
+
+    // Response may be a JSON array or NDJSON
+    let entries: UpdateEntry[] = [];
+    if (text.trim().startsWith('[')) {
+      entries = JSON.parse(text) as UpdateEntry[];
+    } else {
+      entries = text
+        .split('\n')
+        .filter((l) => l.trim())
+        .map((l) => JSON.parse(l) as UpdateEntry);
+    }
+
+    for (const entry of entries) {
+      const txEvents = entry.update?.Transaction?.value?.events ?? [];
+      for (const event of txEvents) {
+        if (event.CreatedEvent?.contractId) {
+          return event.CreatedEvent.contractId;
+        }
+        // For exercise commands, look at child events for the new contract
+        if (event.ExercisedEvent?.childEvents) {
+          for (const child of event.ExercisedEvent.childEvents) {
+            if (child.CreatedEvent?.contractId) {
+              return child.CreatedEvent.contractId;
+            }
+          }
+        }
+      }
+    }
+
+    return 'unknown';
   }
 
   /**
@@ -328,6 +506,9 @@ export class LedgerService {
   ): Promise<SubmitAndWaitResponse> {
     const commandId = `synccap-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
+    // Canton JSON API v2 command body.
+    // In no-auth sandbox mode, `userId` replaces the Authorization header.
+    // The sandbox accepts any userId string and uses actAs/readAs for scoping.
     return this.cantonFetch<SubmitAndWaitResponse>(
       ctx,
       '/v2/commands/submit-and-wait',
@@ -336,7 +517,7 @@ export class LedgerService {
         actAs: actAs ?? [ctx.actingParty],
         readAs: ctx.readAsParties,
         commandId,
-        applicationId: 'synccap-backend',
+        userId: 'synccap-backend',
       }
     );
   }
@@ -358,22 +539,31 @@ export class LedgerService {
   ): Promise<CantonCreatedEvent[]> {
     const offset = await this.getLedgerEnd(ctx);
 
-    // The ACS endpoint returns newline-delimited JSON (NDJSON) in some
-    // Canton versions. We handle both single-object and multi-line responses.
     const url = `${this.baseUrl}/v2/state/active-contracts`;
 
+    // ACS query body per Canton JSON API v2 spec.
+    // filtersByParty scopes results to the acting party (Canton's privacy model).
+    // No Authorization header — sandbox runs without auth.
     const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${ctx.token}`,
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         activeAtOffset: offset,
         eventFormat: {
           filtersByParty: {
             [ctx.actingParty]: {
-              templateIds: [templateId],
+              cumulative: [
+                {
+                  identifierFilter: {
+                    TemplateFilter: {
+                      value: {
+                        templateId,
+                        includeCreatedEventBlob: false,
+                      },
+                    },
+                  },
+                },
+              ],
             },
           },
           verbose: true,
@@ -391,22 +581,28 @@ export class LedgerService {
       return [];
     }
 
-    // Handle NDJSON (newline-delimited JSON) responses
-    const lines = responseText
-      .split('\n')
-      .filter((line) => line.trim().length > 0);
+    // Response is a JSON array (Canton 3.5.x) or NDJSON
+    let lines: string[];
+    if (responseText.trim().startsWith('[')) {
+      // JSON array — parse each element as a line
+      const arr = JSON.parse(responseText) as unknown[];
+      lines = arr.map((item) => JSON.stringify(item));
+    } else {
+      lines = responseText.split('\n').filter((l) => l.trim().length > 0);
+    }
 
     const events: CantonCreatedEvent[] = [];
     for (const line of lines) {
       try {
-        const parsed = JSON.parse(line) as ActiveContractsResponse;
-        if (parsed.contractEntry?.createdEvent) {
-          events.push({
-            createdEvent: parsed.contractEntry.createdEvent,
-          });
+        const parsed = JSON.parse(line) as ActiveContractsResponseLine;
+        // Canton 3.x wraps inside JsActiveContract
+        const createdEvent =
+          parsed.contractEntry?.JsActiveContract?.createdEvent ??
+          parsed.contractEntry?.createdEvent;
+        if (createdEvent) {
+          events.push({ createdEvent });
         }
       } catch {
-        // Skip non-JSON lines (e.g., stream metadata)
         logger.debug('Skipping non-JSON ACS line', { line: line.slice(0, 100) });
       }
     }
@@ -414,52 +610,8 @@ export class LedgerService {
     return events;
   }
 
-  /**
-   * Extracts a contract ID from a submit-and-wait response.
-   *
-   * For exercise commands, the exercise result is typically the contract ID
-   * of the newly created contract (as a string).
-   *
-   * For create commands, we look for created events in the transaction.
-   */
-  private extractContractId(
-    response: SubmitAndWaitResponse,
-    operation: string
-  ): string {
-    // First check for exercise result (direct string return)
-    if (response.exerciseResult) {
-      return response.exerciseResult;
-    }
-
-    // Then check transaction events for created contracts
-    if (response.transaction?.events) {
-      for (const event of response.transaction.events) {
-        if (event.createdEvent) {
-          return event.createdEvent.contractId;
-        }
-        // For exercise events, check the result
-        if (event.exercisedEvent?.exerciseResult) {
-          const result = event.exercisedEvent.exerciseResult;
-          if (typeof result === 'string') {
-            return result;
-          }
-        }
-        // Check child events of exercised events
-        if (event.exercisedEvent?.childEvents) {
-          for (const child of event.exercisedEvent.childEvents) {
-            if (child.createdEvent) {
-              return child.createdEvent.contractId;
-            }
-          }
-        }
-      }
-    }
-
-    logger.warn(`Could not extract contract ID from ${operation} response`, {
-      response: JSON.stringify(response).slice(0, 500),
-    });
-    return 'unknown';
-  }
+  // (Removed — in Canton 3.x submit-and-wait only returns updateId + completionOffset.
+  //  Use getContractIdFromUpdate() instead.)
 
   // -------------------------------------------------------------------------
   // Command Methods (State-Changing Operations)
@@ -513,7 +665,9 @@ export class LedgerService {
       [req.manufacturer, req.owner] // Dual-signatory: both must be in actAs
     );
 
-    const contractId = this.extractContractId(response, 'createCapacityAsset');
+    // Canton 3.x: submit-and-wait returns {updateId, completionOffset}.
+    // Fetch the transaction at that offset to get the created contractId.
+    const contractId = await this.getContractIdFromUpdate(ctx, response.completionOffset);
 
     logger.info('CapacityAsset created', {
       contractId,
@@ -565,7 +719,7 @@ export class LedgerService {
       },
     ]);
 
-    const rfqContractId = this.extractContractId(response, 'proposeTransfer');
+    const rfqContractId = await this.getContractIdFromUpdate(ctx, response.completionOffset);
 
     logger.info('TransferRFQ created', {
       rfqContractId,
@@ -617,10 +771,7 @@ export class LedgerService {
       },
     ]);
 
-    const newAssetContractId = this.extractContractId(
-      response,
-      'acceptTransfer'
-    );
+    const newAssetContractId = await this.getContractIdFromUpdate(ctx, response.completionOffset);
 
     logger.info('Atomic settlement complete', {
       newAssetContractId,
@@ -669,10 +820,7 @@ export class LedgerService {
       },
     ]);
 
-    const penaltyContractId = this.extractContractId(
-      response,
-      'initiatePenalty'
-    );
+    const penaltyContractId = await this.getContractIdFromUpdate(ctx, response.completionOffset);
 
     logger.info('PenaltyAgreement created', { penaltyContractId });
 
@@ -712,12 +860,10 @@ export class LedgerService {
       },
     ]);
 
-    const settledContractId = this.extractContractId(
-      response,
-      'settlePenalty'
-    );
-
-    logger.info('Penalty settled', { settledContractId });
+    // For archive/settle commands, the settled contract ID is the archived one.
+    const settledContractId = req.penaltyContractId;
+    // Confirm the transaction succeeded by checking completionOffset exists.
+    logger.info('Penalty settled', { settledContractId, completionOffset: response.completionOffset });
 
     return { settledContractId };
   }
@@ -751,7 +897,7 @@ export class LedgerService {
 
     return events.map((event) => ({
       contractId: event.createdEvent.contractId,
-      payload: event.createdEvent.createArguments as unknown as CapacityAssetType,
+      payload: event.createdEvent.createArgument as unknown as CapacityAssetType,
     }));
   }
 
@@ -775,7 +921,7 @@ export class LedgerService {
 
     return events.map((event) => ({
       contractId: event.createdEvent.contractId,
-      payload: event.createdEvent.createArguments as unknown as TransferRFQType,
+      payload: event.createdEvent.createArgument as unknown as TransferRFQType,
     }));
   }
 
@@ -802,7 +948,7 @@ export class LedgerService {
 
     return events.map((event) => ({
       contractId: event.createdEvent.contractId,
-      payload: event.createdEvent.createArguments as unknown as PenaltyAgreementType,
+      payload: event.createdEvent.createArgument as unknown as PenaltyAgreementType,
     }));
   }
 }

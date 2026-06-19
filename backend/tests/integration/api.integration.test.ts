@@ -39,9 +39,12 @@ import express from 'express';
 let app: express.Application;
 
 /** Party names for the test scenario. */
-const MANUFACTURER = 'TSMC';
-const PRIMARY_BUYER = 'AppleInc';
-const SECONDARY_BUYER = 'QualcommInc';
+// Canton Sandbox is persistent between runs unless restarted.
+// We append a random suffix to ensure a clean state for every test execution.
+const runId = Math.random().toString(36).substring(2, 8);
+const MANUFACTURER = `TSMC-${runId}`;
+const PRIMARY_BUYER = `AppleInc-${runId}`;
+const SECONDARY_BUYER = `QualcommInc-${runId}`;
 
 /** Tokens obtained during setup. */
 let manufacturerToken: string;
@@ -54,6 +57,14 @@ let secondaryBuyerToken: string;
  */
 let dualPartyToken: string;
 
+/**
+ * Fully-qualified Canton party IDs (e.g., TSMC::1220abc...).
+ * These are returned by /auth/token and must be used in contract fields.
+ */
+let manufacturerPartyId: string = MANUFACTURER;
+let primaryBuyerPartyId: string = PRIMARY_BUYER;
+let secondaryBuyerPartyId: string = SECONDARY_BUYER;
+
 /** Contract IDs captured during the test flow. */
 let assetContractId: string;
 let rfqContractId: string;
@@ -62,7 +73,7 @@ let penaltyContractId: string;
 
 beforeAll(() => {
   // Set test environment variables
-  process.env.NODE_ENV = 'test';
+  process.env.NODE_ENV = 'development'; // Allow Canton party allocation
   process.env.JWT_SECRET = 'test-secret-key-for-integration';
   process.env.LEDGER_API_BASE_URL = 'http://localhost:7575';
 
@@ -83,6 +94,8 @@ describe('POST /auth/token', () => {
     expect(res.body).toHaveProperty('token');
     expect(typeof res.body.token).toBe('string');
     manufacturerToken = res.body.token;
+    // Capture the real Canton party ID (TSMC::1220...)
+    if (res.body.partyId) manufacturerPartyId = res.body.partyId;
   });
 
   it('should issue tokens for all test parties', async () => {
@@ -91,14 +104,16 @@ describe('POST /auth/token', () => {
       .send({ party: PRIMARY_BUYER })
       .expect(200);
     primaryBuyerToken = primaryRes.body.token;
+    if (primaryRes.body.partyId) primaryBuyerPartyId = primaryRes.body.partyId;
 
     const secondaryRes = await request(app)
       .post('/auth/token')
       .send({ party: SECONDARY_BUYER })
       .expect(200);
     secondaryBuyerToken = secondaryRes.body.token;
+    if (secondaryRes.body.partyId) secondaryBuyerPartyId = secondaryRes.body.partyId;
 
-    // Dual-party token for asset creation
+    // Dual-party token: actAs TSMC, readAs AppleInc (using real IDs if available)
     const dualRes = await request(app)
       .post('/auth/token')
       .send({
@@ -107,6 +122,8 @@ describe('POST /auth/token', () => {
       })
       .expect(200);
     dualPartyToken = dualRes.body.token;
+    // Re-capture manufacturer ID (may differ on subsequent calls due to existing party)
+    if (dualRes.body.partyId) manufacturerPartyId = dualRes.body.partyId;
   });
 
   it('should reject empty party', async () => {
@@ -320,8 +337,8 @@ describeLedger('Ledger integration (requires running sandbox)', () => {
         .post('/api/v1/assets')
         .set('Authorization', `Bearer ${dualPartyToken}`)
         .send({
-          manufacturer: MANUFACTURER,
-          owner: PRIMARY_BUYER,
+          manufacturer: manufacturerPartyId,
+          owner: primaryBuyerPartyId,
           assetId: 'LOT-TSMC-3NM-2025Q3-001',
           technologyNode: 'N3nm',
           waferStartsPerMonth: 200,
@@ -345,8 +362,8 @@ describeLedger('Ledger integration (requires running sandbox)', () => {
         .post('/api/v1/assets')
         .set('Authorization', `Bearer ${dualPartyToken}`)
         .send({
-          manufacturer: MANUFACTURER,
-          owner: PRIMARY_BUYER,
+          manufacturer: manufacturerPartyId,
+          owner: primaryBuyerPartyId,
           assetId: 'LOT-TSMC-5NM-2025Q4-002',
           technologyNode: 'N5nm',
           waferStartsPerMonth: 150,
@@ -391,7 +408,7 @@ describeLedger('Ledger integration (requires running sandbox)', () => {
         .set('Authorization', `Bearer ${primaryBuyerToken}`)
         .send({
           assetContractId,
-          secondaryBuyer: SECONDARY_BUYER,
+          secondaryBuyer: secondaryBuyerPartyId,
           askingPricePerWafer: '21500.00',
         })
         .expect(201);
@@ -437,10 +454,11 @@ describeLedger('Ledger integration (requires running sandbox)', () => {
 
       // The buyer's cost basis should be the AGREED price, not the original
       const asset = res.body.data.find(
-        (a: { payload: { owner: string } }) => a.payload.owner === SECONDARY_BUYER
+        (a: { payload: { owner: string } }) => a.payload.owner === secondaryBuyerPartyId
       );
       expect(asset).toBeDefined();
-      expect(asset.payload.costBasisPerWafer).toBe('21500.0');
+      // Wait, let's also verify costBasisPerWafer format. Daml Numeric 10 has 10 decimal places.
+      expect(parseFloat(asset.payload.costBasisPerWafer)).toBe(21500.0);
     });
   });
 

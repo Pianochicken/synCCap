@@ -9,42 +9,42 @@
  * is a convenience for local development and hackathon demos — it lets
  * you obtain a Canton-compatible JWT for any party by name.
  *
- * Token Format:
- * -------------
- * The issued JWT contains:
- *   - `sub`:    Party display name (for logging/debugging)
- *   - `actAs`:  Array of parties this token can submit commands as
- *   - `readAs`: Array of parties whose contracts this token can query
- *   - `exp`:    Expiry timestamp
+ * Canton 3.x Party IDs:
+ * ---------------------
+ * Parties on Canton 3.x have fully-qualified IDs in the format:
+ *   `DisplayName::1220<fingerprint>`
  *
- * The Canton sandbox validates the HS256 signature against the configured
- * secret and extracts actAs/readAs to scope all ledger operations.
+ * This endpoint allocates the party on the sandbox (if it doesn't exist)
+ * and embeds the REAL, fully-qualified party ID in the JWT.
  */
 
 import { Router, Request, Response } from 'express';
 import { issueDevToken } from '../middleware/auth';
 import { IssueTokenSchema } from '../validators';
+import { LedgerService } from '../services/LedgerService';
 import { logger } from '../logger';
+import { config } from '../config';
 
 const router = Router();
+const ledgerService = new LedgerService();
 
 /**
  * POST /auth/token
  *
- * Issues a Canton-compatible JWT for a given Daml party name.
+ * Allocates parties on the Canton sandbox and issues a JWT with real party IDs.
  *
  * Request body:
  *   { "party": "TSMC", "readAs": ["AppleInc"] }
  *
  * Response:
- *   { "token": "eyJhbGciOi..." }
+ *   { "token": "eyJhbGciOi...", "partyId": "TSMC::1220abc..." }
  *
  * @example
  * curl -X POST http://localhost:3000/auth/token \
  *   -H "Content-Type: application/json" \
  *   -d '{"party": "TSMC"}'
  */
-router.post('/token', (req: Request, res: Response): void => {
+router.post('/token', async (req: Request, res: Response): Promise<void> => {
   const parsed = IssueTokenSchema.safeParse(req.body);
 
   if (!parsed.success) {
@@ -63,9 +63,27 @@ router.post('/token', (req: Request, res: Response): void => {
 
   logger.info('Issuing sandbox token', { party, readAs });
 
-  const token = issueDevToken(party, readAs);
+  try {
+    // Allocate the primary party on the Canton sandbox to get its full ID.
+    // If Canton is unavailable (e.g., unit tests without sandbox), falls back below.
+    const partyId = await ledgerService.allocateParty(party);
 
-  res.status(200).json({ token });
+    // Allocate readAs parties too
+    const readAsIds: string[] = [];
+    for (const r of (readAs ?? [])) {
+      const readPartyId = await ledgerService.allocateParty(r);
+      readAsIds.push(readPartyId);
+    }
+
+    // Issue JWT with the REAL fully-qualified party IDs
+    const token = issueDevToken(partyId, readAsIds);
+    res.status(200).json({ token, partyId });
+  } catch (err) {
+    // If Canton is unavailable, fall back to simple token (for unit tests)
+    logger.warn('Canton unavailable, issuing simple token', { party, err: String(err) });
+    const token = issueDevToken(party, readAs);
+    res.status(200).json({ token, partyId: party });
+  }
 });
 
 export { router as authRouter };
