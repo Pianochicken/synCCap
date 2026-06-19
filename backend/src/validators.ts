@@ -13,7 +13,7 @@
  * input maps directly to the wire format without lossy conversion.
  */
 
-import { z } from 'zod';
+import { z } from '@hono/zod-openapi';
 
 // ---------------------------------------------------------------------------
 // Shared Primitives
@@ -25,15 +25,13 @@ import { z } from 'zod';
  */
 export const TechnologyNodeSchema = z.enum(['N3nm', 'N5nm', 'N7nm', 'N14nm'], {
   message: 'technologyNode must be one of: N3nm, N5nm, N7nm, N14nm',
+}).openapi({
+  description: 'Semiconductor technology node',
+  example: 'N3nm',
 });
 
 /**
  * A positive decimal value represented as a string.
- * Validates that the string is a valid number and is strictly positive.
- *
- * Canton/Daml note: The @daml/types `Numeric` type serialises as a string
- * to preserve arbitrary precision. We validate the format here and pass
- * the string directly to the Daml ledger client.
  */
 const positiveDecimalString = z
   .string()
@@ -48,7 +46,6 @@ const positiveDecimalString = z
 
 /**
  * A non-empty Daml contract ID.
- * Contract IDs are opaque strings issued by the Canton participant node.
  */
 const contractIdString = z
   .string()
@@ -56,8 +53,6 @@ const contractIdString = z
 
 /**
  * A Daml party identifier.
- * In the sandbox, these are simple display names (e.g., "TSMC", "AppleInc").
- * In production Canton, they are participant-scoped party IDs.
  */
 const partyString = z
   .string()
@@ -65,8 +60,6 @@ const partyString = z
 
 /**
  * An ISO-8601 date string for capacity commitment periods.
- * We accept a loose format (YYYY-MM-DD) rather than full ISO to keep
- * the hackathon demo simple.
  */
 const dateString = z
   .string()
@@ -76,116 +69,48 @@ const dateString = z
 // Request Body Schemas
 // ---------------------------------------------------------------------------
 
-/**
- * Schema for POST /api/v1/assets — Create a new CapacityAsset.
- *
- * Canton note: Creating a CapacityAsset requires dual authorization from
- * both `manufacturer` and `owner`. In the sandbox, the authenticated party
- * submits via `submitMulti` with both parties listed in `actAs`. In production,
- * this would be a multi-party submission workflow.
- */
 export const CreateAssetSchema = z.object({
-  /** The foundry party that issues the capacity commitment. */
-  manufacturer: partyString,
-  /** The initial owner (primary buyer) of the capacity token. */
-  owner: partyString,
-  /** Unique lot identifier (e.g., "LOT-TSMC-3NM-2025Q3-001"). */
-  assetId: z.string().min(1, 'assetId must be a non-empty string'),
-  /** Semiconductor process node. */
+  manufacturer: partyString.openapi({ example: 'TSMC' }),
+  owner: partyString.openapi({ example: 'AppleInc' }),
+  assetId: z.string().min(1).openapi({ example: 'LOT-TSMC-3NM-2025Q3-001' }),
   technologyNode: TechnologyNodeSchema,
-  /** Monthly wafer allocation. */
-  waferStartsPerMonth: z
-    .number()
-    .int('waferStartsPerMonth must be an integer')
-    .positive('waferStartsPerMonth must be positive'),
-  /** Price per wafer paid by the owner (PRIVACY-CRITICAL). */
-  costBasisPerWafer: positiveDecimalString,
-  /** Commitment period start. */
-  commitmentStartDate: dateString,
-  /** Commitment period end. */
-  commitmentEndDate: dateString,
-});
+  waferStartsPerMonth: z.number().int().positive().openapi({ example: 200 }),
+  costBasisPerWafer: positiveDecimalString.openapi({ example: '18500.00' }),
+  commitmentStartDate: dateString.openapi({ example: '2025-07-01' }),
+  commitmentEndDate: dateString.openapi({ example: '2026-06-30' }),
+}).openapi('CreateAssetRequest');
 export type CreateAssetRequest = z.infer<typeof CreateAssetSchema>;
 
-/**
- * Schema for POST /api/v1/transfers/propose — Initiate a dark pool RFQ.
- *
- * Canton note: This exercises the `ProposeTransfer` choice on a CapacityAsset,
- * which atomically archives the asset and creates a TransferRFQ. The secondary
- * buyer is added as an observer and can see the asking price but NOT the
- * original costBasisPerWafer.
- */
 export const ProposeTransferSchema = z.object({
-  /** Contract ID of the CapacityAsset to offer for sale. */
-  assetContractId: contractIdString,
-  /** The prospective buyer party. */
-  secondaryBuyer: partyString,
-  /** Asking price per wafer (visible to the buyer). */
-  askingPricePerWafer: positiveDecimalString,
-});
+  assetContractId: contractIdString.openapi({ example: '00abcd...' }),
+  secondaryBuyer: partyString.openapi({ example: 'QualcommInc' }),
+  askingPricePerWafer: positiveDecimalString.openapi({ example: '21500.00' }),
+}).openapi('ProposeTransferRequest');
 export type ProposeTransferRequest = z.infer<typeof ProposeTransferSchema>;
 
-/**
- * Schema for POST /api/v1/transfers/accept — Accept a TransferRFQ (atomic settlement).
- *
- * Canton note: This exercises `AcceptTransfer` on a TransferRFQ, atomically
- * archiving the RFQ and creating a new CapacityAsset with the buyer as owner.
- * The new asset's costBasisPerWafer is set to agreedPricePerWafer — the
- * original seller's cost is permanently severed.
- */
 export const AcceptTransferSchema = z.object({
-  /** Contract ID of the TransferRFQ to accept. */
-  rfqContractId: contractIdString,
-  /** The negotiated price per wafer. */
-  agreedPricePerWafer: positiveDecimalString,
-});
+  rfqContractId: contractIdString.openapi({ example: '00efgh...' }),
+  agreedPricePerWafer: positiveDecimalString.openapi({ example: '21500.00' }),
+}).openapi('AcceptTransferRequest');
 export type AcceptTransferRequest = z.infer<typeof AcceptTransferSchema>;
 
-/**
- * Schema for POST /api/v1/penalties/initiate — Trigger penalty workflow.
- *
- * Canton note: This exercises `InitiatePenalty` on a CapacityAsset,
- * creating a PenaltyAgreement visible ONLY to the manufacturer and
- * penalized party. No other network participant can detect the cancellation.
- */
 export const InitiatePenaltySchema = z.object({
-  /** Contract ID of the CapacityAsset being canceled. */
-  assetContractId: contractIdString,
-  /** Penalty rate as a decimal between 0 (exclusive) and 1 (inclusive). */
+  assetContractId: contractIdString.openapi({ example: '00abcd...' }),
   penaltyRate: positiveDecimalString.refine(
     (val) => parseFloat(val) <= 1,
     'penaltyRate must be between 0 (exclusive) and 1 (inclusive)'
-  ),
-  /** Human-readable reason for the cancellation. */
-  cancellationReason: z
-    .string()
-    .min(1, 'cancellationReason must be a non-empty string'),
-});
+  ).openapi({ example: '0.25' }),
+  cancellationReason: z.string().min(1).openapi({ example: 'Order cancellation due to supply chain issues' }),
+}).openapi('InitiatePenaltyRequest');
 export type InitiatePenaltyRequest = z.infer<typeof InitiatePenaltySchema>;
 
-/**
- * Schema for POST /api/v1/penalties/settle — Confirm penalty payment.
- *
- * Canton note: This exercises `SettlePenalty` on a PenaltyAgreement.
- * Only the manufacturer can exercise this choice, confirming they
- * received the penalty payment.
- */
 export const SettlePenaltySchema = z.object({
-  /** Contract ID of the PenaltyAgreement to settle. */
-  penaltyContractId: contractIdString,
-});
+  penaltyContractId: contractIdString.openapi({ example: '00xyz...' }),
+}).openapi('SettlePenaltyRequest');
 export type SettlePenaltyRequest = z.infer<typeof SettlePenaltySchema>;
 
-/**
- * Schema for POST /auth/token — Issue a sandbox development token.
- *
- * ⚠️ SANDBOX ONLY. In production, tokens are issued by the participant
- * node's IAM / Identity Provider.
- */
 export const IssueTokenSchema = z.object({
-  /** The Daml party display name to issue a token for. */
-  party: partyString,
-  /** Optional additional parties this token can read on behalf of. */
-  readAs: z.array(partyString).optional(),
-});
+  party: partyString.openapi({ example: 'TSMC' }),
+  readAs: z.array(partyString).optional().openapi({ example: ['AppleInc'] }),
+}).openapi('IssueTokenRequest');
 export type IssueTokenRequest = z.infer<typeof IssueTokenSchema>;

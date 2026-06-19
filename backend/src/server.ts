@@ -20,30 +20,39 @@
  * committed to the Canton sequencer).
  */
 
+import { serve } from '@hono/node-server';
 import { createApp } from './app';
 import { config } from './config';
 import { logger } from './logger';
 
 const app = createApp();
 
-const server = app.listen(config.port, () => {
-  logger.info(`synCCap backend started`, {
+const server = serve(
+  {
+    fetch: app.fetch,
     port: config.port,
-    env: config.env,
-    ledgerUrl: config.ledger.baseUrl,
-  });
-  logger.info('Available endpoints:');
-  logger.info('  POST /auth/token              — Issue sandbox JWT');
-  logger.info('  GET  /health                  — Health check');
-  logger.info('  POST /api/v1/assets           — Create CapacityAsset');
-  logger.info('  GET  /api/v1/assets           — Query assets');
-  logger.info('  POST /api/v1/transfers/propose — Propose transfer (dark pool)');
-  logger.info('  POST /api/v1/transfers/accept  — Accept transfer (atomic settlement)');
-  logger.info('  GET  /api/v1/transfers         — Query transfer RFQs');
-  logger.info('  POST /api/v1/penalties/initiate — Initiate penalty');
-  logger.info('  POST /api/v1/penalties/settle   — Settle penalty');
-  logger.info('  GET  /api/v1/penalties          — Query penalties');
-});
+  },
+  (info) => {
+    logger.info(`synCCap backend started`, {
+      port: info.port,
+      env: config.env,
+      ledgerUrl: config.ledger.baseUrl,
+    });
+    logger.info('Available endpoints:');
+    logger.info('  Swagger UI: http://localhost:3000/swagger');
+    logger.info('  OpenAPI Spec: http://localhost:3000/docs');
+    logger.info('  POST /auth/token              — Issue sandbox JWT');
+    logger.info('  GET  /health                  — Health check');
+    logger.info('  POST /api/v1/assets           — Create CapacityAsset');
+    logger.info('  GET  /api/v1/assets           — Query assets');
+    logger.info('  POST /api/v1/transfers/propose — Propose transfer (dark pool)');
+    logger.info('  POST /api/v1/transfers/accept  — Accept transfer (atomic settlement)');
+    logger.info('  GET  /api/v1/transfers         — Query transfer RFQs');
+    logger.info('  POST /api/v1/penalties/initiate — Initiate penalty');
+    logger.info('  POST /api/v1/penalties/settle   — Settle penalty');
+    logger.info('  GET  /api/v1/penalties          — Query penalties');
+  }
+);
 
 // ---------------------------------------------------------------------------
 // Graceful Shutdown

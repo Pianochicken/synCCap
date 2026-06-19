@@ -21,117 +21,82 @@
  * 8. Error handler  — Global error boundary
  */
 
-import express, { Request, Response, NextFunction } from 'express';
-import helmet from 'helmet';
-import cors from 'cors';
-import rateLimit from 'express-rate-limit';
+import { OpenAPIHono } from '@hono/zod-openapi';
+import { swaggerUI } from '@hono/swagger-ui';
+import { cors } from 'hono/cors';
 import { config } from './config';
 import { logger } from './logger';
-import { authenticate } from './middleware/auth';
+import { authenticate, AuthVariables } from './middleware/auth';
 import { authRouter } from './routes/auth-routes';
 import { apiRouter } from './routes/api';
 
-// ---------------------------------------------------------------------------
-// App Factory
-// ---------------------------------------------------------------------------
-
 /**
- * Creates and configures the Express application.
- *
- * @returns Configured Express app (not yet listening).
+ * Creates and configures the Hono application.
  */
-export function createApp(): express.Application {
-  const app = express();
+export function createApp() {
+  const app = new OpenAPIHono<{ Variables: AuthVariables }>();
 
-  // -------------------------------------------------------------------------
   // Global Middleware
-  // -------------------------------------------------------------------------
+  app.use('*', cors({
+    origin: config.cors.allowedOrigins,
+    credentials: true,
+  }));
 
-  // Security headers
-  app.use(helmet());
+  // Request logging
+  app.use('*', async (c, next) => {
+    const start = Date.now();
+    await next();
+    logger.info(`${c.req.method} ${c.req.url} - ${c.res.status} - ${Date.now() - start}ms`);
+  });
 
-  // CORS — allow requests from configured frontend origins
-  app.use(
-    cors({
-      origin: config.cors.allowedOrigins,
-      credentials: true,
-    })
-  );
-
-  // JSON body parser with a sane size limit
-  app.use(express.json({ limit: '16kb' }));
-
-  // Rate limiting — protect against abuse
-  app.use(
-    rateLimit({
-      windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 100, // 100 requests per window per IP
-      standardHeaders: true,
-      legacyHeaders: false,
-      message: {
-        error: 'RATE_LIMITED',
-        message: 'Too many requests. Please try again later.',
-      },
-    })
-  );
-
-  // -------------------------------------------------------------------------
   // Health Check
-  // -------------------------------------------------------------------------
-
-  /**
-   * GET /health
-   *
-   * Simple health check endpoint. Does not require authentication.
-   * Used by load balancers and orchestrators to verify the service is running.
-   */
-  app.get('/health', (_req: Request, res: Response) => {
-    res.status(200).json({
+  app.get('/health', (c) => {
+    return c.json({
       status: 'ok',
       service: 'synccap-backend',
       timestamp: new Date().toISOString(),
     });
   });
 
-  // -------------------------------------------------------------------------
-  // Route Mounting
-  // -------------------------------------------------------------------------
-
-  // Unauthenticated: sandbox token issuance
-  app.use('/auth', authRouter);
-
-  // Authenticated: all ledger operations require a valid JWT
-  app.use('/api/v1', authenticate, apiRouter);
-
-  // -------------------------------------------------------------------------
-  // 404 Catch-All
-  // -------------------------------------------------------------------------
-
-  app.use((_req: Request, res: Response) => {
-    res.status(404).json({
-      error: 'NOT_FOUND',
-      message: `Route ${_req.method} ${_req.path} does not exist.`,
-    });
+  // OpenAPI Documentation Generator
+  app.doc('/docs', {
+    openapi: '3.0.0',
+    info: {
+      title: 'synCCap API',
+      version: '0.1.0',
+      description: 'Canton Network Ledger API bridge for semiconductor capacity tokenization',
+    },
   });
 
-  // -------------------------------------------------------------------------
-  // Global Error Handler
-  // -------------------------------------------------------------------------
+  // Swagger UI
+  app.get('/swagger', swaggerUI({ url: '/docs' }));
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  // Route Mounting
+  app.route('/auth', authRouter);
+
+  // Authenticated routes
+  app.use('/api/v1/*', authenticate);
+  app.route('/api/v1', apiRouter);
+
+  // 404 Catch-All
+  app.notFound((c) => {
+    return c.json({
+      error: 'NOT_FOUND',
+      message: `Route ${c.req.method} ${c.req.path} does not exist.`,
+    }, 404);
+  });
+
+  // Global Error Handler
+  app.onError((err, c) => {
     logger.error('Unhandled error', {
       error: err.message,
       stack: err.stack,
     });
 
-    res.status(500).json({
+    return c.json({
       error: 'INTERNAL_SERVER_ERROR',
-      message:
-        config.env === 'production'
-          ? 'An unexpected error occurred.'
-          : err.message,
-    });
+      message: config.env === 'production' ? 'An unexpected error occurred.' : err.message,
+    }, 500);
   });
 
   return app;

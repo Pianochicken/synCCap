@@ -30,13 +30,21 @@
 
 import request from 'supertest';
 import { createApp } from '../../src/app';
-import express from 'express';
+import { serve } from '@hono/node-server';
 
 // ---------------------------------------------------------------------------
 // Test Setup
 // ---------------------------------------------------------------------------
 
-let app: express.Application;
+let app: any;
+
+afterAll((done) => {
+  if (app && typeof app.close === 'function') {
+    app.close(done);
+  } else {
+    done();
+  }
+});
 
 /** Party names for the test scenario. */
 // Canton Sandbox is persistent between runs unless restarted.
@@ -77,7 +85,8 @@ beforeAll(() => {
   process.env.JWT_SECRET = 'test-secret-key-for-integration';
   process.env.LEDGER_API_BASE_URL = 'http://localhost:7575';
 
-  app = createApp();
+  const honoApp = createApp();
+  app = serve({ fetch: honoApp.fetch, port: 0 });
 });
 
 // ---------------------------------------------------------------------------

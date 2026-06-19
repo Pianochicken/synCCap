@@ -89,9 +89,9 @@ dpm studio      # Opens the Daml IDE with inline test execution
 
 ### What Was Built
 
-Phase 2 delivers a production-structured Express.js REST API that bridges HTTP clients to the Canton Daml ledger. The integration layer uses the **Canton JSON Ledger API v2** directly (the legacy `@daml/ledger` npm package is not compatible with Canton 3.x).
+Phase 2 delivers a production-structured Hono REST API that bridges HTTP clients to the Canton Daml ledger. The integration layer uses the **Canton JSON Ledger API v2** directly (the legacy `@daml/ledger` npm package is not compatible with Canton 3.x).
 
-### Key Architecture Decision: Canton JSON API v2
+### Key Architecture Decision: Canton JSON API v2 & Hono
 
 The `@daml/ledger` npm package stopped at version 2.10.4 and is **incompatible** with Canton SDK 3.x. The recommended approach (per Canton docs) is to use raw HTTP against the JSON Ledger API v2 endpoints:
 
@@ -101,30 +101,34 @@ The `@daml/ledger` npm package stopped at version 2.10.4 and is **incompatible**
 
 Template IDs use the fully qualified format: `packageId:ModuleName:TemplateName`.
 
+**Framework Choice**: The backend uses **Hono** with `@hono/zod-openapi` and `@hono/node-server`. This provides excellent performance, built-in strict typing, and auto-generates our Swagger documentation from our Zod schemas, replacing the legacy Express.js setup.
+
 ### Files Created/Modified
 
 | File | Purpose |
 |:-----|:--------|
-| `backend/package.json` | Dependencies: `@daml/types@3.5.1`, `express`, `zod`, `jsonwebtoken`, `winston`, `helmet`, `cors`, `express-rate-limit` |
+| `backend/package.json` | Dependencies: `@daml/types@3.5.1`, `hono`, `@hono/node-server`, `@hono/zod-openapi`, `jsonwebtoken`, `winston` |
 | `backend/tsconfig.json` | Strict TypeScript with path alias for codegen output |
 | `backend/.env.example` | Environment variable documentation |
 | `backend/jest.config.js` | Jest + ts-jest configuration with codegen module mapping |
 | `backend/src/config.ts` | Validated runtime configuration from environment variables |
 | `backend/src/logger.ts` | Winston structured logger (JSON prod / pretty dev) |
-| `backend/src/validators.ts` | Zod schemas for all API request bodies |
+| `backend/src/validators.ts` | Hono/Zod schemas for all API request bodies and Swagger metadata |
 | `backend/src/middleware/auth.ts` | JWT → `PartyContext` middleware + sandbox token issuer |
 | `backend/src/services/LedgerService.ts` | **Core service layer** — Canton JSON API v2 client |
-| `backend/src/routes/api.ts` | REST API routes (`/api/v1/...`) with Zod validation |
-| `backend/src/routes/auth-routes.ts` | Sandbox token issuance endpoint |
-| `backend/src/app.ts` | Express app factory (testable, no listener binding) |
-| `backend/src/server.ts` | Server entrypoint with graceful shutdown |
-| `backend/tests/integration/api.integration.test.ts` | 27 tests (15 pass, 12 require sandbox) |
+| `backend/src/routes/api.ts` | REST API routes using Hono `createRoute` |
+| `backend/src/routes/auth-routes.ts` | Sandbox token issuance endpoint using Hono `createRoute` |
+| `backend/src/app.ts` | Hono `OpenAPIHono` app factory and Swagger UI setup |
+| `backend/src/server.ts` | Server entrypoint using `@hono/node-server` with graceful shutdown |
+| `backend/tests/integration/api.integration.test.ts` | 27 tests passing using `supertest` with Hono |
 | `backend/daml.js/` | Generated TypeScript bindings from `daml codegen js` |
 
 ### REST API Endpoints
 
 | Endpoint | Method | Auth | Description |
 |:---------|:-------|:-----|:------------|
+| `/docs` | GET | No | OpenAPI 3.0 specification JSON |
+| `/swagger` | GET | No | Swagger UI documentation portal |
 | `/health` | GET | No | Service health check |
 | `/auth/token` | POST | No | Issue sandbox JWT for a party |
 | `/api/v1/assets` | POST | Yes | Create a CapacityAsset |

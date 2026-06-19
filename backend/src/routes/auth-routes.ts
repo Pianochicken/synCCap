@@ -18,72 +18,77 @@
  * and embeds the REAL, fully-qualified party ID in the JWT.
  */
 
-import { Router, Request, Response } from 'express';
+import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { issueDevToken } from '../middleware/auth';
 import { IssueTokenSchema } from '../validators';
 import { LedgerService } from '../services/LedgerService';
 import { logger } from '../logger';
-import { config } from '../config';
 
-const router = Router();
-const ledgerService = new LedgerService();
-
-/**
- * POST /auth/token
- *
- * Allocates parties on the Canton sandbox and issues a JWT with real party IDs.
- *
- * Request body:
- *   { "party": "TSMC", "readAs": ["AppleInc"] }
- *
- * Response:
- *   { "token": "eyJhbGciOi...", "partyId": "TSMC::1220abc..." }
- *
- * @example
- * curl -X POST http://localhost:3000/auth/token \
- *   -H "Content-Type: application/json" \
- *   -d '{"party": "TSMC"}'
- */
-router.post('/token', async (req: Request, res: Response): Promise<void> => {
-  const parsed = IssueTokenSchema.safeParse(req.body);
-
-  if (!parsed.success) {
-    res.status(400).json({
-      error: 'VALIDATION_ERROR',
-      message: 'Invalid token request.',
-      details: parsed.error.issues.map((issue) => ({
-        field: issue.path.join('.'),
-        message: issue.message,
-      })),
-    });
+export const authRouter = new OpenAPIHono({
+  defaultHook: (result, c) => {
+    if (!result.success) {
+      return c.json({
+        error: 'VALIDATION_ERROR',
+        message: 'Invalid token request.',
+        details: result.error.issues.map((issue) => ({
+          field: issue.path.join('.'),
+          message: issue.message,
+        })),
+      }, 400);
+    }
     return;
   }
+});
+const ledgerService = new LedgerService();
 
-  const { party, readAs } = parsed.data;
+const tokenRoute = createRoute({
+  method: 'post',
+  path: '/token',
+  summary: 'Issue a Canton sandbox development token',
+  description: 'Allocates parties on the Canton sandbox and issues a JWT with real party IDs. SANDBOX USE ONLY.',
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: IssueTokenSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: 'Token generated successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            token: z.string(),
+            partyId: z.string(),
+          }),
+        },
+      },
+    },
+  },
+});
+
+authRouter.openapi(tokenRoute, async (c) => {
+  const { party, readAs } = c.req.valid('json');
 
   logger.info('Issuing sandbox token', { party, readAs });
 
   try {
-    // Allocate the primary party on the Canton sandbox to get its full ID.
-    // If Canton is unavailable (e.g., unit tests without sandbox), falls back below.
     const partyId = await ledgerService.allocateParty(party);
 
-    // Allocate readAs parties too
     const readAsIds: string[] = [];
     for (const r of (readAs ?? [])) {
       const readPartyId = await ledgerService.allocateParty(r);
       readAsIds.push(readPartyId);
     }
 
-    // Issue JWT with the REAL fully-qualified party IDs
     const token = issueDevToken(partyId, readAsIds);
-    res.status(200).json({ token, partyId });
+    return c.json({ token, partyId }, 200);
   } catch (err) {
-    // If Canton is unavailable, fall back to simple token (for unit tests)
     logger.warn('Canton unavailable, issuing simple token', { party, err: String(err) });
     const token = issueDevToken(party, readAs);
-    res.status(200).json({ token, partyId: party });
+    return c.json({ token, partyId: party }, 200);
   }
 });
-
-export { router as authRouter };

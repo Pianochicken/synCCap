@@ -30,7 +30,7 @@
  * Provider) and validated with RS256. See Canton docs on IAM integration.
  */
 
-import { Request, Response, NextFunction } from 'express';
+import { Context, Next } from 'hono';
 import jwt from 'jsonwebtoken';
 import { config } from '../config';
 import { logger } from '../logger';
@@ -39,78 +39,38 @@ import { logger } from '../logger';
 // Types
 // ---------------------------------------------------------------------------
 
-/**
- * The decoded Canton JWT payload structure.
- * Extends the standard JWT payload with Daml-specific ledger API fields.
- */
 export interface DamlTokenPayload {
-  /** The acting party — the identity submitting commands to the ledger. */
   actAs: string[];
-  /** Parties whose contracts this token can read. */
   readAs: string[];
-  /** Optional human-readable display name (for logging). */
   sub?: string;
-  /** Standard JWT expiry timestamp. */
   exp?: number;
 }
 
-/**
- * The party context attached to each authenticated request.
- * The service layer reads this to scope all ledger operations correctly.
- */
 export interface PartyContext {
-  /** The primary party acting on the ledger. Must be exactly one party. */
   actingParty: string;
-  /** Parties whose state this party is authorised to query. */
   readAsParties: string[];
-  /** The raw JWT token, forwarded to the Daml HTTP JSON API. */
   token: string;
 }
 
-// Augment the Express Request type to carry our PartyContext.
-declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
-  namespace Express {
-    interface Request {
-      /**
-       * Set by the `authenticate` middleware.
-       * Contains the Daml party identity for this request.
-       */
-      partyContext?: PartyContext;
-    }
-  }
-}
+/**
+ * Hono Variables for type-safe context injection.
+ */
+export type AuthVariables = {
+  partyContext: PartyContext;
+};
 
 // ---------------------------------------------------------------------------
 // Middleware
 // ---------------------------------------------------------------------------
 
-/**
- * Express middleware that validates a Bearer JWT and attaches the Canton
- * party context to the request.
- *
- * Usage: `router.use(authenticate)`
- *
- * Rejects with 401 if:
- *   - No Authorization header is present.
- *   - The token is expired, malformed, or has an invalid signature.
- *   - The token does not contain at least one `actAs` party.
- */
-export function authenticate(
-  req: Request,
-  res: Response,
-  next: NextFunction
-): void {
-  const authHeader = req.headers['authorization'];
+export async function authenticate(c: Context<{ Variables: AuthVariables }>, next: Next): Promise<Response | void> {
+  const authHeader = c.req.header('authorization');
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    res.status(401).json({
+    return c.json({
       error: 'MISSING_TOKEN',
-      message:
-        'Authorization header with Bearer token is required. ' +
-        'Obtain a token from the /auth/token endpoint.',
-    });
-    return;
+      message: 'Authorization header with Bearer token is required. Obtain a token from the /auth/token endpoint.',
+    }, 401);
   }
 
   const token = authHeader.slice(7); // Strip "Bearer "
@@ -119,44 +79,41 @@ export function authenticate(
     const payload = jwt.verify(token, config.jwt.secret) as DamlTokenPayload;
 
     if (!payload.actAs || payload.actAs.length === 0) {
-      res.status(401).json({
+      return c.json({
         error: 'INVALID_TOKEN_PAYLOAD',
-        message:
-          'Token must include at least one party in the `actAs` claim. ' +
-          'This maps to the Daml party identity for ledger operations.',
-      });
-      return;
+        message: 'Token must include at least one party in the `actAs` claim.',
+      }, 401);
     }
 
-    req.partyContext = {
+    c.set('partyContext', {
       actingParty: payload.actAs[0],
       readAsParties: payload.readAs ?? [],
       token,
-    };
-
-    logger.debug('Authenticated request', {
-      party: req.partyContext.actingParty,
-      path: req.path,
     });
 
-    next();
+    logger.debug('Authenticated request', {
+      party: payload.actAs[0],
+      path: c.req.path,
+    });
+
+    await next();
   } catch (err) {
     if (err instanceof jwt.TokenExpiredError) {
-      res.status(401).json({
+      return c.json({
         error: 'TOKEN_EXPIRED',
         message: 'JWT token has expired. Please obtain a new token.',
-      });
+      }, 401);
     } else if (err instanceof jwt.JsonWebTokenError) {
-      res.status(401).json({
+      return c.json({
         error: 'INVALID_TOKEN',
         message: 'JWT token signature is invalid.',
-      });
+      }, 401);
     } else {
       logger.error('Unexpected auth error', { err });
-      res.status(500).json({
+      return c.json({
         error: 'AUTH_ERROR',
         message: 'An unexpected authentication error occurred.',
-      });
+      }, 500);
     }
   }
 }
@@ -165,16 +122,6 @@ export function authenticate(
 // Dev Helper: Token Issuer
 // ---------------------------------------------------------------------------
 
-/**
- * Issues a Canton-compatible JWT for a given Daml party.
- *
- * ⚠️  SANDBOX USE ONLY. In production, tokens must be issued by your
- * organisation's IdP (Identity Provider) via the Canton IAM integration.
- *
- * @param actAs   - The Daml party that this token acts as.
- * @param readAs  - Additional parties this token can read on behalf of.
- * @returns A signed JWT string.
- */
 export function issueDevToken(actAs: string, readAs: string[] = []): string {
   const payload: DamlTokenPayload = {
     actAs: [actAs],
