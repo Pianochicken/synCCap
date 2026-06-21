@@ -225,53 +225,67 @@ synCCap/
 
 - **Smart Contract Layer:** ✅ Complete
 - **Integration Layer:** ✅ Complete
-- **Frontend UI:** ⬜ Not started (Phase 3)
+- **Frontend UI:** ✅ Complete (Phase 3)
 - **Demo Flow:** ⬜ Not started (Phase 4)
 
 ---
 
-## Phase 3 Prompt: React Frontend
+## Phase 3 Summary: React Frontend ✅
 
-Copy and paste the following prompt to initiate Phase 3:
+### What Was Built
+
+Phase 3 delivers a modern React SPA using Vite, Tailwind CSS (v3), and TypeScript. It implements the multi-party dashboard required to visually demonstrate the Canton Network's privacy model for semiconductor capacity tokenization.
+
+### Files Created
+
+| File | Purpose |
+|:-----|:--------|
+| `frontend/src/App.tsx` | Main orchestrator, manages current party state and unified dashboard layout. |
+| `frontend/src/api/client.ts` | Axios HTTP client configured to connect to the backend REST API with JWT bearer tokens. |
+| `frontend/src/components/PartySwitcher.tsx` | UI component to toggle between TSMC, AppleInc, and QualcommInc. |
+| `frontend/src/components/views/ManufacturerView.tsx` | Form to issue CapacityAssets and list existing inventory. Also settles penalties. |
+| `frontend/src/components/views/PrimaryBuyerView.tsx` | Lists owned capacity. Allows proposing Dark Pool transfers and initiating penalty cancellations. |
+| `frontend/src/components/views/SecondaryBuyerView.tsx` | Displays incoming Dark Pool RFQs. Allows accepting transfers (atomic settlement). |
+| `frontend/src/components/views/PrivacyAuditPanel.tsx` | A side-by-side Canton state visibility matrix, explicitly showing what data points are visible/hidden to the currently logged-in party. |
+
+### How to Run
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+---
+
+## Phase 4 Prompt: Demo Flow & Polish
+
+Copy and paste the following prompt to initiate Phase 4:
 
 ---
 
 ```
 [Role & Expertise]
-You are a Lead Web3 Architect and Senior Full-Stack Engineer, specializing in the Canton Network, Daml smart contracts, and enterprise-grade distributed ledger technologies. You write clean, maintainable TypeScript/React code and design highly secure, privacy-preserving state machines.
+You are a Lead Web3 Architect and Senior Full-Stack Engineer. You are helping me finalize the "synCCap" project for the Canton Network Hackathon.
 
 [Project Context]
-I am building "synCCap" for a Canton Network Hackathon.
-* Core Concept: Universal capacity tokenization (RWA) and privacy-preserving settlement.
-* Demo: High-End Semiconductor Foundry Capacity.
-* Phase 1 (COMPLETE): Daml data model with 3 core templates (CapacityAsset, TransferRFQ, PenaltyAgreement) and comprehensive Daml Script tests. See `daml/Main.daml`.
-* Phase 2 (COMPLETE): Node.js/TypeScript integration layer with Express REST API and Canton JSON Ledger API v2 client. See `backend/` directory.
-* The backend REST API is at `http://localhost:3000` with endpoints documented in `AI_HANDOFF.md`.
-* Refer to `AI_HANDOFF.md` for the complete Phase 1 and Phase 2 summaries.
+* Phase 1 (Smart Contracts): Complete.
+* Phase 2 (Backend REST API): Complete.
+* Phase 3 (React Frontend): Complete.
+* All code is successfully integrated and tested.
 
-[Phase 3: React Frontend (Current Task)]
-Your task right now is to execute Phase 3 exclusively.
-* 1. Set up a React/TypeScript project in a `frontend/` directory using Vite.
-* 2. Create a multi-party dashboard that demonstrates Canton's privacy model:
-     - Party selector (switch between TSMC, AppleInc, QualcommInc perspectives)
-     - Each party sees ONLY what Canton's privacy model allows
-* 3. Implement the following views:
-     - **Asset Dashboard**: Display CapacityAssets with technology node, wafer count, cost basis
-     - **Dark Pool**: Propose transfers, view RFQs, accept/reject offers
-     - **Penalty Management**: Initiate penalties, view settlement status
-     - **Privacy Audit Panel**: Side-by-side comparison of what each party can/cannot see
-* 4. Connect all views to the backend REST API with proper auth token management.
-* 5. Style the application with a premium, dark-themed UI suitable for a financial/enterprise demo.
-* 6. Stop generating code. Update `AI_HANDOFF.md` with the Phase 3 summary and the prompt for Phase 4 (Demo Flow & Polish).
+[Phase 4: Demo Flow & Polish (Current Task)]
+We need to ensure the end-to-end demonstration runs flawlessly for the Hackathon judges.
+Your task right now is to execute Phase 4:
+1. Write a `README.md` at the root of the project with a high-level overview, architecture diagram (text or mermaid), and step-by-step instructions on how to run the entire stack (Sandbox -> Backend -> Frontend).
+2. Write a `DEMO_SCRIPT.md` that provides a step-by-step script for the live presentation, highlighting exactly what to click and what to say about Canton's privacy guarantees (e.g., "Notice how Qualcomm cannot see Apple's original cost basis").
+3. Conduct a final review of the repository structure. Add any missing `.gitignore` files or clean up unnecessary artifacts.
 
 [Output Constraints]
-* Use strict TypeScript with no `any` types.
-* Use React functional components with hooks.
-* Implement proper loading states, error handling, and user feedback.
-* The UI must visually demonstrate Canton's privacy guarantees — show what each party can and cannot see.
-* Include comprehensive JSDoc comments explaining Canton-specific UI patterns.
+* Ensure the README is visually appealing and professional.
+* The Demo Script should be timed for a ~3-5 minute presentation.
 ```
 
 ---
 
-> **⚠️ Do not proceed to Phase 3 until explicitly instructed.**
+> **⚠️ Do not proceed to Phase 4 until explicitly instructed.**
