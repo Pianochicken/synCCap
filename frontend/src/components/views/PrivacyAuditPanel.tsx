@@ -1,55 +1,112 @@
-import { Eye, EyeOff } from 'lucide-react';
-import clsx from 'clsx';
+import React from 'react';
+import { Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import type { PartyRole } from '../PartySwitcher';
 
 interface PrivacyAuditPanelProps {
   currentRole: PartyRole;
 }
 
+const getVisibility = (dataPoint: string, currentRole: PartyRole): boolean => {
+  switch (dataPoint) {
+    case 'Original Cost Basis':
+      return currentRole === 'Manufacturer' || currentRole === 'PrimaryBuyer';
+    case 'Penalty Cancellation Agreements':
+      return currentRole === 'Manufacturer' || currentRole === 'PrimaryBuyer';
+    case 'Dark Pool Transfer Prices':
+      return currentRole === 'PrimaryBuyer' || currentRole === 'SecondaryBuyer';
+    default:
+      return false;
+  }
+};
+
+const rows = [
+  { label: 'Original Wafer Cost Basis',       key: 'Original Cost Basis' },
+  { label: 'Penalty Cancellation Agreements', key: 'Penalty Cancellation Agreements' },
+  { label: 'Dark Pool Transfer Prices',        key: 'Dark Pool Transfer Prices' },
+];
+
 export const PrivacyAuditPanel: React.FC<PrivacyAuditPanelProps> = ({ currentRole }) => {
   if (!currentRole) return null;
 
-  const getVisibility = (dataPoint: string) => {
-    switch (dataPoint) {
-      case 'Original Cost Basis':
-        if (currentRole === 'Manufacturer' || currentRole === 'PrimaryBuyer') return true;
-        return false;
-      case 'Penalty Cancellation Agreements':
-        if (currentRole === 'Manufacturer' || currentRole === 'PrimaryBuyer') return true;
-        return false;
-      case 'Dark Pool Transfer Prices':
-        if (currentRole === 'PrimaryBuyer' || currentRole === 'SecondaryBuyer') return true;
-        return false; // Actually Manufacturer might see it if they are signatory to RFQ, but let's highlight Canton privacy here.
-      default:
-        return false;
-    }
-  };
-
-  const rows = [
-    { label: 'Original Wafer Cost Basis', key: 'Original Cost Basis' },
-    { label: 'Penalty Cancellation Agreements', key: 'Penalty Cancellation Agreements' },
-    { label: 'Dark Pool Transfer Prices', key: 'Dark Pool Transfer Prices' },
-  ];
-
   return (
-    <div className="mt-12 border-t border-gray-800 pt-8">
-      <h3 className="text-lg font-bold text-gray-300 mb-4 px-2">Canton Privacy Audit Matrix</h3>
-      <div className="bg-surface/50 rounded-xl overflow-hidden border border-gray-800/50">
-        <div className="grid grid-cols-2 bg-black/40 p-3 border-b border-gray-800/50">
-          <div className="text-xs font-bold text-gray-500 uppercase tracking-wider">Data Point</div>
-          <div className="text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Your Visibility</div>
+    <div
+      className="mt-8 pt-8"
+      style={{ borderTop: '1px solid var(--border-color)' }}
+    >
+      {/* Section header */}
+      <div className="flex items-center gap-2 mb-4">
+        <div
+          className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+          style={{ background: 'var(--primary-glow)', border: '1px solid var(--primary)' }}
+        >
+          <ShieldCheck className="w-4 h-4" style={{ color: 'var(--primary)' }} />
         </div>
+        <h3 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
+          Canton Privacy Audit Matrix
+        </h3>
+      </div>
+
+      {/* Table */}
+      <div
+        className="rounded-2xl overflow-hidden"
+        style={{ border: '1px solid var(--border-color)' }}
+      >
+        {/* Table header */}
+        <div
+          className="grid grid-cols-2 px-5 py-3"
+          style={{
+            background: 'var(--bg-surface-2)',
+            borderBottom: '1px solid var(--border-color)',
+          }}
+        >
+          <div className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+            Data Point
+          </div>
+          <div
+            className="text-xs font-bold uppercase tracking-wider text-center"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            Your Visibility
+          </div>
+        </div>
+
+        {/* Table rows */}
         {rows.map((row, idx) => {
-          const isVisible = getVisibility(row.key);
+          const isVisible = getVisibility(row.key, currentRole);
           return (
-            <div key={idx} className="grid grid-cols-2 p-3 border-b border-gray-800/50 last:border-0 items-center hover:bg-surface transition-colors">
-              <div className="text-sm text-gray-300 font-medium">{row.label}</div>
+            <div
+              key={idx}
+              className="grid grid-cols-2 px-5 py-3.5 items-center transition-colors"
+              style={{
+                borderBottom: idx < rows.length - 1 ? '1px solid var(--border-color)' : 'none',
+                background: idx % 2 === 1 ? 'var(--bg-surface-2)' : 'var(--bg-surface)',
+              }}
+            >
+              <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                {row.label}
+              </div>
               <div className="flex justify-center">
-                <div className={clsx(
-                  "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold",
-                  isVisible ? "bg-success/10 text-success border border-success/20" : "bg-danger/10 text-danger border border-danger/20"
-                )}>
-                  {isVisible ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                <div
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold"
+                  style={
+                    isVisible
+                      ? {
+                          background: 'rgba(16,217,126,0.10)',
+                          color: '#10d97e',
+                          border: '1px solid rgba(16,217,126,0.25)',
+                        }
+                      : {
+                          background: 'rgba(240,77,77,0.10)',
+                          color: '#f04d4d',
+                          border: '1px solid rgba(240,77,77,0.25)',
+                        }
+                  }
+                >
+                  {isVisible ? (
+                    <Eye className="w-3.5 h-3.5" />
+                  ) : (
+                    <EyeOff className="w-3.5 h-3.5" />
+                  )}
                   {isVisible ? 'VISIBLE' : 'HIDDEN'}
                 </div>
               </div>

@@ -1,38 +1,226 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ─────────────────────────────────────────────
+   CSS Custom Properties (Design Tokens)
+   Light mode = default; .dark overrides them.
+   ───────────────────────────────────────────── */
+:root {
+  --bg-page:         #f7f8fc;
+  --bg-surface:      #ffffff;
+  --bg-surface-2:    #f0f2f7;
+  --bg-surface-hover:#e8eaf0;
+  --text-primary:    #0f1117;
+  --text-secondary:  #4b5563;
+  --text-muted:      #9ca3af;
+  --border-color:    rgba(0,0,0,0.08);
+  --border-strong:   rgba(0,0,0,0.15);
+  --shadow-card:     0 1px 3px rgba(0,0,0,0.06), 0 4px 20px rgba(0,0,0,0.04);
+  --shadow-glow:     0 0 40px rgba(79,141,255,0.18);
+  --primary:         #2563eb;
+  --primary-glow:    rgba(37,99,235,0.15);
+}
+
+.dark {
+  --bg-page:         #080a0f;
+  --bg-surface:      #0f1117;
+  --bg-surface-2:    #161b27;
+  --bg-surface-hover:#1e2538;
+  --text-primary:    #f1f5f9;
+  --text-secondary:  #94a3b8;
+  --text-muted:      #64748b;
+  --border-color:    rgba(255,255,255,0.07);
+  --border-strong:   rgba(255,255,255,0.15);
+  --shadow-card:     0 1px 3px rgba(0,0,0,0.4), 0 4px 20px rgba(0,0,0,0.3);
+  --shadow-glow:     0 0 60px rgba(79,141,255,0.20);
+  --primary:         #4f8dff;
+  --primary-glow:    rgba(79,141,255,0.15);
+}
+
+/* ─────────────────────────────────────────────
+   Base
+   ───────────────────────────────────────────── */
 @layer base {
+  html { scroll-behavior: smooth; }
+
   body {
-    @apply bg-background text-gray-200 antialiased font-sans;
+    @apply antialiased font-sans;
+    background-color: var(--bg-page);
+    color: var(--text-primary);
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
+
+  ::selection { background: rgba(79,141,255,0.3); }
 }
 
+/* ─────────────────────────────────────────────
+   Components  — NO nesting, NO @apply of
+   custom classes inside @layer components.
+   ───────────────────────────────────────────── */
 @layer components {
+
+  /* ── Buttons ───────────────────────── */
   .btn-primary {
-    @apply px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed select-none;
+    background: var(--primary);
   }
+  .btn-primary:hover:not(:disabled) {
+    filter: brightness(1.1);
+    box-shadow: 0 4px 20px var(--primary-glow);
+    transform: translateY(-1px);
+  }
+  .btn-primary:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
   .btn-secondary {
-    @apply px-4 py-2 bg-surface-hover hover:bg-gray-700 text-gray-200 rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-gray-700;
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed select-none;
+    color: var(--text-primary);
+    background: var(--bg-surface-2);
+    border: 1px solid var(--border-color);
   }
+  .btn-secondary:hover:not(:disabled) {
+    background: var(--bg-surface-hover);
+    border-color: var(--border-strong);
+    transform: translateY(-1px);
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 disabled:opacity-50 select-none;
+    color: var(--text-secondary);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    color: var(--text-primary);
+    background: var(--bg-surface-2);
+  }
+
   .btn-danger {
-    @apply px-4 py-2 bg-danger/20 text-danger hover:bg-danger hover:text-white rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-danger/50;
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-sm text-red-500 transition-all duration-200 disabled:opacity-50 select-none;
+    background: rgba(240,77,77,0.08);
+    border: 1px solid rgba(240,77,77,0.25);
   }
-  
+  .btn-danger:hover:not(:disabled) {
+    background: rgba(240,77,77,0.15);
+    border-color: rgba(240,77,77,0.5);
+  }
+
+  /* ── Cards ─────────────────────────── */
   .card {
-    @apply bg-surface border border-gray-800 rounded-xl shadow-lg p-6;
+    @apply rounded-2xl p-6;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-card);
+    transition: border-color 0.2s, box-shadow 0.2s;
   }
-  
+  .card:hover {
+    border-color: var(--border-strong);
+  }
+
+  /* card-glow duplicates card styles — keeps @apply on Tailwind utilities only */
+  .card-glow {
+    @apply rounded-2xl p-6;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-card);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .card-glow:hover {
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-glow);
+  }
+
+  /* ── Form controls ──────────────────── */
   .input-field {
-    @apply w-full bg-background border border-gray-700 rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all;
+    @apply w-full rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 outline-none;
+    background: var(--bg-surface-2);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
   }
-  
+  .input-field::placeholder { color: var(--text-muted); }
+  .input-field:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-glow);
+  }
+
   .label {
-    @apply block text-sm font-medium text-gray-400 mb-1;
+    @apply block text-xs font-semibold uppercase tracking-wider mb-1.5;
+    color: var(--text-muted);
   }
+
+  /* ── Glass ──────────────────────────── */
+  .glass {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  /* ── Badges ─────────────────────────── */
+  .badge       { @apply inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full; }
+  .badge-green { @apply badge bg-emerald-500/10 text-emerald-500; }
+  .badge-blue  { @apply badge bg-blue-500/10   text-blue-500;    }
+  .badge-amber { @apply badge bg-amber-500/10  text-amber-500;   }
+  .badge-red   { @apply badge bg-red-500/10    text-red-500;     }
 }
 
-/* Glassmorphism utilities */
-.glass {
-  @apply bg-surface/80 backdrop-blur-md border border-white/10;
+/* ─────────────────────────────────────────────
+   Utilities (outside @layer so they're not
+   purged and can be referenced freely)
+   ───────────────────────────────────────────── */
+
+/* Animated gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #4f8dff 0%, #a78bfa 50%, #4f8dff 100%);
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradient-x 8s ease infinite;
+}
+
+/* Subtle dot/line grid background */
+.bg-grid {
+  background-image:
+    linear-gradient(var(--border-color) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border-color) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+/* Glow orb decoration */
+.glow-orb {
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+  filter: blur(80px);
+}
+
+/* Page-entry animation helper */
+.animate-in {
+  animation: slideUp 0.45s ease-out both;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar              { width: 6px; height: 6px; }
+::-webkit-scrollbar-track        { background: transparent; }
+::-webkit-scrollbar-thumb        { background: var(--border-strong); border-radius: 999px; }
+
+/* ─────────────────────────────────────────────
+   Keyframes
+   ───────────────────────────────────────────── */
+@keyframes gradient-x {
+  0%,100% { background-position: 0%   50%; }
+  50%     { background-position: 100% 50%; }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
