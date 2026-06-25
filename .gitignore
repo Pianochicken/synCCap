@@ -81,3 +81,4 @@ log/
 coverage/
 .nyc_output/
 test-results/
+DEMO_SCRIPT.md
