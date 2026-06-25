@@ -84,7 +84,14 @@ authRouter.openapi(tokenRoute, async (c) => {
       readAsIds.push(readPartyId);
     }
 
-    const token = issueDevToken(partyId, readAsIds);
+    let actAsIds: string[] = [partyId];
+    if (party === 'TSMC') {
+      const appleId = await ledgerService.allocateParty('AppleInc');
+      const qualcommId = await ledgerService.allocateParty('QualcommInc');
+      actAsIds.push(appleId, qualcommId);
+    }
+
+    const token = issueDevToken(actAsIds, readAsIds);
     return c.json({ token, partyId }, 200);
   } catch (err) {
     logger.warn('Canton unavailable, issuing simple token', { party, err: String(err) });

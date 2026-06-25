@@ -122,11 +122,11 @@ export async function authenticate(c: Context<{ Variables: AuthVariables }>, nex
 // Dev Helper: Token Issuer
 // ---------------------------------------------------------------------------
 
-export function issueDevToken(actAs: string, readAs: string[] = []): string {
+export function issueDevToken(actAs: string | string[], readAs: string[] = []): string {
   const payload: DamlTokenPayload = {
-    actAs: [actAs],
+    actAs: Array.isArray(actAs) ? actAs : [actAs],
     readAs,
-    sub: actAs,
+    sub: Array.isArray(actAs) ? actAs[0] : actAs,
   };
   return jwt.sign(payload, config.jwt.secret, {
     expiresIn: config.jwt.expirySeconds,

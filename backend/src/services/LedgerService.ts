@@ -51,7 +51,7 @@ import {
 } from '../validators';
 
 // Import the package ID from the codegen output
-import { packageId, Main } from '@daml.js/synccap-0.1.0';
+import { Main } from '@daml.js/synccap-0.1.0';
 
 // Alias the generated template types for cleaner usage
 type CapacityAssetType = Main.CapacityAsset;
@@ -636,6 +636,8 @@ export class LedgerService {
     ctx: PartyContext,
     req: CreateAssetRequest
   ): Promise<CreateAssetResult> {
+    const ownerId = await this.allocateParty(req.owner);
+
     logger.info('Creating CapacityAsset', {
       party: ctx.actingParty,
       assetId: req.assetId,
@@ -650,7 +652,7 @@ export class LedgerService {
             templateId: TEMPLATE_IDS.CapacityAsset,
             createArguments: {
               manufacturer: req.manufacturer,
-              owner: req.owner,
+              owner: ownerId,
               assetId: req.assetId,
               technologyNode: req.technologyNode,
               waferStartsPerMonth: req.waferStartsPerMonth.toString(),
@@ -662,7 +664,7 @@ export class LedgerService {
           },
         },
       ],
-      [req.manufacturer, req.owner] // Dual-signatory: both must be in actAs
+      [req.manufacturer, ownerId] // Dual-signatory: both must be in actAs
     );
 
     // Canton 3.x: submit-and-wait returns {updateId, completionOffset}.
@@ -699,10 +701,12 @@ export class LedgerService {
     ctx: PartyContext,
     req: ProposeTransferRequest
   ): Promise<ProposeTransferResult> {
+    const buyerId = await this.allocateParty(req.secondaryBuyer);
+
     logger.info('Proposing transfer (dark pool RFQ)', {
       party: ctx.actingParty,
       assetContractId: req.assetContractId,
-      buyer: req.secondaryBuyer,
+      buyer: buyerId,
     });
 
     const response = await this.submitAndWait(ctx, [
@@ -712,7 +716,7 @@ export class LedgerService {
           contractId: req.assetContractId,
           choice: 'ProposeTransfer',
           choiceArgument: {
-            secondaryBuyer: req.secondaryBuyer,
+            secondaryBuyer: buyerId,
             askingPricePerWafer: req.askingPricePerWafer,
           },
         },

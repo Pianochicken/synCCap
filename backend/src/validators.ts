@@ -70,7 +70,6 @@ const dateString = z
 // ---------------------------------------------------------------------------
 
 export const CreateAssetSchema = z.object({
-  manufacturer: partyString.openapi({ example: 'TSMC' }),
   owner: partyString.openapi({ example: 'AppleInc' }),
   assetId: z.string().min(1).openapi({ example: 'LOT-TSMC-3NM-2025Q3-001' }),
   technologyNode: TechnologyNodeSchema,
