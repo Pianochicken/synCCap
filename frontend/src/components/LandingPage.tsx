@@ -12,6 +12,7 @@
  */
 
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   ShieldCheck,
   Layers,
@@ -29,9 +30,6 @@ import {
 } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
 
-interface LandingPageProps {
-  onEnterDemo: () => void;
-}
 
 /* ─── tiny reusable pieces ────────────────────────────────────────────────── */
 
@@ -151,7 +149,8 @@ const RoleCard: React.FC<RoleCardProps> = ({ emoji, name, role, color, sees, bli
 
 /* ─── Main component ────────────────────────────────────────────────────────── */
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onEnterDemo }) => {
+export const LandingPage: React.FC = () => {
+  const navigate = useNavigate();
   return (
     <div className="min-h-screen relative overflow-x-hidden" style={{ background: 'var(--bg-page)' }}>
 
@@ -187,7 +186,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterDemo }) => {
           </GradientBadge>
           <ThemeToggle />
           <button
-            onClick={onEnterDemo}
+            onClick={() => navigate('/dashboard')}
             className="btn-primary hidden sm:inline-flex"
           >
             Enter Demo <ArrowRight className="w-4 h-4" />
@@ -218,7 +217,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterDemo }) => {
         </p>
 
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4 animate-in" style={{ animationDelay: '240ms' }}>
-          <button onClick={onEnterDemo} className="btn-primary text-base px-8 py-3">
+          <button onClick={() => navigate('/dashboard')} className="btn-primary text-base px-8 py-3">
             Launch Live Demo <ChevronRight className="w-5 h-5" />
           </button>
           <a
@@ -434,7 +433,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterDemo }) => {
             Switch between parties and watch how the Canton Ledger physically segregates
             state on a need-to-know basis — all in real-time against a live sandbox.
           </p>
-          <button onClick={onEnterDemo} className="btn-primary text-base px-10 py-4">
+          <button onClick={() => navigate('/dashboard')} className="btn-primary text-base px-10 py-4">
             Launch Live Demo <ArrowRight className="w-5 h-5" />
           </button>
         </div>
