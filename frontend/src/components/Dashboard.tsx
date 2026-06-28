@@ -1,44 +1,58 @@
+/**
+ * @file components/Dashboard.tsx
+ * @description The main application dashboard, scoped to the authenticated company.
+ *
+ * Data is fetched immediately on mount because this component only renders
+ * when a valid AuthSession exists — the user is already authenticated.
+ *
+ * The dashboard renders the role-specific view (Manufacturer / PrimaryBuyer /
+ * SecondaryBuyer) based on the session, with no in-page account switching.
+ */
+
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Layers, ArrowLeft } from 'lucide-react';
-import { PartySwitcher } from './PartySwitcher';
-import type { PartyRole } from './PartySwitcher';
+import { Layers, LogOut } from 'lucide-react';
 import { ManufacturerView } from './views/ManufacturerView';
 import { PrimaryBuyerView } from './views/PrimaryBuyerView';
 import { SecondaryBuyerView } from './views/SecondaryBuyerView';
 import { PrivacyAuditPanel } from './views/PrivacyAuditPanel';
 import { ThemeToggle } from './ThemeToggle';
 import { ApiService } from '../api/client';
+import type { AuthSession } from '../types/AuthSession';
+
+const ROLE_LABELS = {
+  Manufacturer: 'Foundry',
+  PrimaryBuyer: 'Primary Buyer',
+  SecondaryBuyer: 'Secondary Buyer',
+};
+
+const ROLE_COLORS = {
+  Manufacturer: '#4f8dff',
+  PrimaryBuyer: '#a78bfa',
+  SecondaryBuyer: '#10d97e',
+};
+
+const ROLE_ICONS = {
+  Manufacturer: '🏭',
+  PrimaryBuyer: '🍎',
+  SecondaryBuyer: '📡',
+};
 
 interface DashboardProps {
-  currentPartyId: string | null;
-  currentRole: PartyRole;
-  onSwitchParty: (partyId: string, role: PartyRole) => Promise<void>;
+  session: AuthSession;
+  onLogout: () => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({
-  currentPartyId,
-  currentRole,
-  onSwitchParty,
-}) => {
-  const navigate = useNavigate();
-  // Data States scoped strictly to the Dashboard component
+export const Dashboard: React.FC<DashboardProps> = ({ session, onLogout }) => {
   const [assets, setAssets] = useState<unknown[]>([]);
   const [transfers, setTransfers] = useState<unknown[]>([]);
   const [penalties, setPenalties] = useState<unknown[]>([]);
   const [loadingData, setLoadingData] = useState(false);
 
-  // Only fetch data if the component is mounted AND a party is selected
+  // Fetch data immediately on mount — user is authenticated
   useEffect(() => {
-    if (currentPartyId) {
-      fetchDashboardData();
-    } else {
-      setAssets([]);
-      setTransfers([]);
-      setPenalties([]);
-    }
+    fetchDashboardData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPartyId]);
+  }, [session.partyId]);
 
   const fetchDashboardData = async () => {
     try {
@@ -53,24 +67,23 @@ export const Dashboard: React.FC<DashboardProps> = ({
       setPenalties(penaltiesData);
     } catch (error) {
       console.error('Failed to fetch dashboard data', error);
-      alert('Could not fetch ledger state. Make sure Canton Sandbox and Backend are running, or clear your session and log in again.');
     } finally {
       setLoadingData(false);
     }
   };
+
+  const roleColor = ROLE_COLORS[session.role];
 
   return (
     <div
       className="min-h-screen relative overflow-hidden font-sans"
       style={{ background: 'var(--bg-page)' }}
     >
-      {/* Subtle background grid */}
+      {/* Background decoration */}
       <div className="absolute inset-0 bg-grid opacity-30 pointer-events-none" />
-
-      {/* Glow orbs */}
       <div
         className="glow-orb w-[600px] h-[600px] top-[-200px] left-[-100px] opacity-10"
-        style={{ background: 'radial-gradient(circle, #4f8dff, transparent 70%)' }}
+        style={{ background: `radial-gradient(circle, ${roleColor}, transparent 70%)` }}
       />
       <div
         className="glow-orb w-[400px] h-[400px] bottom-0 right-[-100px] opacity-10"
@@ -78,11 +91,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
       />
 
       <div className="relative max-w-6xl mx-auto px-4 py-8">
+
         {/* Header */}
         <header
           className="flex items-center justify-between mb-10 pb-5 border-b"
           style={{ borderColor: 'var(--border-color)' }}
         >
+          {/* Logo */}
           <div className="flex items-center gap-3">
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center shadow-md"
@@ -100,73 +115,69 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Account badge + controls */}
+          <div className="flex items-center gap-3">
             <ThemeToggle />
-            <button
-              onClick={() => navigate('/')}
-              className="btn-ghost text-xs"
+
+            {/* Account badge */}
+            <div
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl border"
+              style={{
+                background: `${roleColor}10`,
+                borderColor: `${roleColor}40`,
+              }}
             >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              Back to Overview
+              <span className="text-base">{ROLE_ICONS[session.role]}</span>
+              <div className="leading-tight">
+                <div className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
+                  {session.displayName}
+                </div>
+                <div className="text-xs" style={{ color: roleColor }}>
+                  {ROLE_LABELS[session.role]}
+                </div>
+              </div>
+            </div>
+
+            {/* Logout */}
+            <button onClick={onLogout} className="btn-ghost text-sm">
+              <LogOut className="w-4 h-4" />
+              Log Out
             </button>
           </div>
         </header>
 
-        {/* Party Switcher */}
-        <PartySwitcher
-          currentPartyId={currentPartyId}
-          onSwitchParty={onSwitchParty}
-        />
-
         {/* Dashboard Content */}
-        {!currentPartyId ? (
-          <div className="text-center py-24 px-4 animate-in">
-            <div
-              className="w-20 h-20 rounded-3xl mx-auto mb-6 flex items-center justify-center"
-              style={{ background: 'var(--bg-surface-2)', border: '1px solid var(--border-color)' }}
-            >
-              <Layers className="w-10 h-10" style={{ color: 'var(--text-muted)' }} />
-            </div>
-            <h2 className="text-2xl font-bold mb-3" style={{ color: 'var(--text-primary)' }}>
-              Select a Party to Begin
-            </h2>
-            <p className="max-w-md mx-auto text-base leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-              You are currently an unauthenticated observer. Because Canton enforces
-              sub-transaction privacy, you see{' '}
-              <strong style={{ color: 'var(--primary)' }}>zero ledger state</strong> — as intended.
-            </p>
-          </div>
-        ) : loadingData ? (
+        {loadingData ? (
           <div className="text-center py-24 animate-in">
             <div
               className="w-10 h-10 border-2 rounded-full mx-auto mb-4 animate-spin"
-              style={{ borderColor: 'var(--primary)', borderTopColor: 'transparent' }}
+              style={{ borderColor: roleColor, borderTopColor: 'transparent' }}
             />
             <p style={{ color: 'var(--text-secondary)' }}>Syncing with Canton Ledger…</p>
           </div>
         ) : (
           <div className="animate-in">
-            {currentRole === 'Manufacturer' && (
+            {session.role === 'Manufacturer' && (
               <ManufacturerView
                 assets={assets as never[]}
                 penalties={penalties as never[]}
                 onRefresh={fetchDashboardData}
               />
             )}
-            {currentRole === 'PrimaryBuyer' && (
+            {session.role === 'PrimaryBuyer' && (
               <PrimaryBuyerView
                 assets={assets as never[]}
                 onRefresh={fetchDashboardData}
               />
             )}
-            {currentRole === 'SecondaryBuyer' && (
+            {session.role === 'SecondaryBuyer' && (
               <SecondaryBuyerView
                 assets={assets as never[]}
                 transfers={transfers as never[]}
                 onRefresh={fetchDashboardData}
               />
             )}
-            <PrivacyAuditPanel currentRole={currentRole} />
+            <PrivacyAuditPanel currentRole={session.role} />
           </div>
         )}
       </div>

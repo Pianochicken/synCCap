@@ -1,6 +1,6 @@
 import React from 'react';
 import { Eye, EyeOff, ShieldCheck } from 'lucide-react';
-import type { PartyRole } from '../PartySwitcher';
+import type { PartyRole } from '../../types/AuthSession';
 
 interface PrivacyAuditPanelProps {
   currentRole: PartyRole;

@@ -70,10 +70,12 @@ const tokenRoute = createRoute({
   },
 });
 
-authRouter.openapi(tokenRoute, async (c) => {
-  const { party, readAs } = c.req.valid('json');
 
-  logger.info('Issuing sandbox token', { party, readAs });
+
+authRouter.openapi(tokenRoute, async (c) => {
+  const { party, additionalActAs, readAs } = c.req.valid('json');
+
+  logger.info('Issuing sandbox token', { party, additionalActAs, readAs });
 
   try {
     const partyId = await ledgerService.allocateParty(party);
@@ -85,17 +87,18 @@ authRouter.openapi(tokenRoute, async (c) => {
     }
 
     let actAsIds: string[] = [partyId];
-    if (party === 'TSMC') {
-      const appleId = await ledgerService.allocateParty('AppleInc');
-      const qualcommId = await ledgerService.allocateParty('QualcommInc');
-      actAsIds.push(appleId, qualcommId);
+    for (const a of (additionalActAs ?? [])) {
+      const actPartyId = await ledgerService.allocateParty(a);
+      actAsIds.push(actPartyId);
     }
 
     const token = issueDevToken(actAsIds, readAsIds);
     return c.json({ token, partyId }, 200);
   } catch (err) {
     logger.warn('Canton unavailable, issuing simple token', { party, err: String(err) });
-    const token = issueDevToken(party, readAs);
+    const actAsIds = [party, ...(additionalActAs ?? [])];
+    const token = issueDevToken(actAsIds, readAs);
     return c.json({ token, partyId: party }, 200);
   }
 });
+

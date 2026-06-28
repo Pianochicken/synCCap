@@ -110,6 +110,8 @@ export type SettlePenaltyRequest = z.infer<typeof SettlePenaltySchema>;
 
 export const IssueTokenSchema = z.object({
   party: partyString.openapi({ example: 'TSMC' }),
+  additionalActAs: z.array(partyString).optional().openapi({ example: ['AppleInc'] }),
   readAs: z.array(partyString).optional().openapi({ example: ['AppleInc'] }),
 }).openapi('IssueTokenRequest');
 export type IssueTokenRequest = z.infer<typeof IssueTokenSchema>;
+

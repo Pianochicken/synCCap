@@ -651,7 +651,7 @@ export class LedgerService {
           CreateCommand: {
             templateId: TEMPLATE_IDS.CapacityAsset,
             createArguments: {
-              manufacturer: req.manufacturer,
+              manufacturer: ctx.actingParty,
               owner: ownerId,
               assetId: req.assetId,
               technologyNode: req.technologyNode,
@@ -664,7 +664,7 @@ export class LedgerService {
           },
         },
       ],
-      [req.manufacturer, ownerId] // Dual-signatory: both must be in actAs
+      [ctx.actingParty, ownerId] // Dual-signatory: both must be in actAs
     );
 
     // Canton 3.x: submit-and-wait returns {updateId, completionOffset}.

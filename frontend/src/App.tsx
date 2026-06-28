@@ -3,64 +3,60 @@
  * @description Root application component — URL-based routing via React Router.
  *
  * Routes:
- *   /            → LandingPage
- *   /dashboard   → Dashboard (party-switcher + views)
+ *   /          → LandingPage
+ *   /login     → LoginPage (company account selection)
+ *   /dashboard → Dashboard (requires active AuthSession)
  *
- * Auth state (currentPartyId, currentRole) lives here so it persists across
- * client-side navigation without re-fetching tokens.
+ * The AuthSession (partyId, displayName, role) is stored in sessionStorage
+ * so it persists across page refreshes within the same tab but is cleared
+ * when the tab is closed — consistent with enterprise session management.
  */
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import type { PartyRole } from './components/PartySwitcher';
 import { LandingPage } from './components/LandingPage';
+import { LoginPage } from './components/LoginPage';
 import { Dashboard } from './components/Dashboard';
-import { ApiService } from './api/client';
+import type { AuthSession } from './types/AuthSession';
+
+const SESSION_KEY = 'synccap_session';
+
+function readSession(): AuthSession | null {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    return raw ? (JSON.parse(raw) as AuthSession) : null;
+  } catch {
+    return null;
+  }
+}
 
 function App() {
-  const [currentPartyId, setCurrentPartyId] = useState<string | null>(null);
-  const [currentRole, setCurrentRole] = useState<PartyRole>(null);
+  const [session, setSession] = useState<AuthSession | null>(() => readSession());
 
-  // Restore session from localStorage on first mount
-  useEffect(() => {
-    const savedPartyId = localStorage.getItem('synccap_partyId');
-    if (savedPartyId) {
-      setCurrentPartyId(savedPartyId);
-      if (savedPartyId.startsWith('TSMC')) setCurrentRole('Manufacturer');
-      else if (savedPartyId.startsWith('AppleInc')) setCurrentRole('PrimaryBuyer');
-      else if (savedPartyId.startsWith('QualcommInc')) setCurrentRole('SecondaryBuyer');
-    }
-  }, []);
+  const handleLogin = (newSession: AuthSession) => {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(newSession));
+    setSession(newSession);
+  };
 
-  const handleSwitchParty = async (partyId: string, role: PartyRole) => {
-    if (!partyId) {
-      ApiService.logout();
-      setCurrentPartyId(null);
-      setCurrentRole(null);
-      return;
-    }
-
-    try {
-      const auth = await ApiService.login(partyId);
-      setCurrentPartyId(auth.partyId);
-      setCurrentRole(role);
-    } catch (err) {
-      console.error('Login failed', err);
-      alert('Failed to switch party. Check backend logs.');
-    }
+  const handleLogout = () => {
+    sessionStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem('synccap_token');
+    localStorage.removeItem('synccap_partyId');
+    setSession(null);
   };
 
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
+      <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
       <Route
         path="/dashboard"
         element={
-          <Dashboard
-            currentPartyId={currentPartyId}
-            currentRole={currentRole}
-            onSwitchParty={handleSwitchParty}
-          />
+          session ? (
+            <Dashboard session={session} onLogout={handleLogout} />
+          ) : (
+            <Navigate to="/login" replace />
+          )
         }
       />
       {/* Redirect any unknown path to landing */}

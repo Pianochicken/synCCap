@@ -186,10 +186,10 @@ export const LandingPage: React.FC = () => {
           </GradientBadge>
           <ThemeToggle />
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate('/login')}
             className="btn-primary hidden sm:inline-flex"
           >
-            Enter Demo <ArrowRight className="w-4 h-4" />
+            Access Platform <ArrowRight className="w-4 h-4" />
           </button>
         </div>
       </nav>
@@ -217,8 +217,8 @@ export const LandingPage: React.FC = () => {
         </p>
 
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4 animate-in" style={{ animationDelay: '240ms' }}>
-          <button onClick={() => navigate('/dashboard')} className="btn-primary text-base px-8 py-3">
-            Launch Live Demo <ChevronRight className="w-5 h-5" />
+          <button onClick={() => navigate('/login')} className="btn-primary text-base px-8 py-3">
+            Access Platform <ChevronRight className="w-5 h-5" />
           </button>
           <a
             href="https://www.canton.network/"
@@ -264,7 +264,7 @@ export const LandingPage: React.FC = () => {
                 icon: <Globe className="w-5 h-5" />,
                 title: 'Public Chains Leak BI',
                 color: '#f04d4d',
-                body: "Reselling on Ethereum means Qualcomm can see exactly what Apple paid TSMC. Apple's supplier pricing is their most sensitive trade secret.",
+                body: "Reselling on Ethereum means competitors can see exactly what the primary buyer paid the manufacturer. The supplier pricing is their most sensitive trade secret.",
               },
               {
                 icon: <Building2 className="w-5 h-5" />,
@@ -311,22 +311,22 @@ export const LandingPage: React.FC = () => {
             step={1}
             accent="#4f8dff"
             icon={<Cpu className="w-6 h-6" />}
-            title="TSMC Issues Capacity Token"
-            desc="The foundry mints a CapacityAsset on the Canton ledger — a legally-backed RWA representing a wafer lot. The costBasisPerWafer is encoded and visible only to the manufacturer and the primary buyer."
+            title="Manufacturer Issues Capacity Token"
+            desc="The foundry mints a CapacityAsset on the Canton ledger — a legally-backed RWA representing a wafer lot. The cost basis is encoded and visible only to the manufacturer and the primary buyer."
           />
           <StepCard
             step={2}
             accent="#a78bfa"
             icon={<ShieldCheck className="w-6 h-6" />}
-            title="Apple Opens a Dark Pool RFQ"
-            desc="Apple exercises ProposeTransfer. This atomically archives the original asset and creates a TransferRFQ where Qualcomm can see the asking price — but never Apple's original cost. Privacy firewall enforced at the ledger."
+            title="Primary Buyer Opens a Dark Pool RFQ"
+            desc="The primary buyer exercises ProposeTransfer. This atomically archives the original asset and creates a TransferRFQ where the secondary buyer can see the asking price — but never the original cost. Privacy firewall enforced at the ledger."
           />
           <StepCard
             step={3}
             accent="#10d97e"
             icon={<Zap className="w-6 h-6" />}
-            title="Qualcomm Accepts — Settlement in ≤1s"
-            desc="Qualcomm exercises AcceptTransfer. Canton atomically archives the RFQ and creates a new CapacityAsset owned by Qualcomm. No partial states. No intermediaries. Finality in under one second."
+            title="Secondary Buyer Accepts — Settlement in ≤1s"
+            desc="The secondary buyer exercises AcceptTransfer. Canton atomically archives the RFQ and creates a new CapacityAsset owned by the new buyer. No partial states. No intermediaries. Finality in under one second."
           />
         </div>
       </section>

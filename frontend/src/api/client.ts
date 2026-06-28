@@ -19,16 +19,19 @@ client.interceptors.request.use((config) => {
   return config;
 });
 
+
 // --- API Service Functions ---
 
 export const ApiService = {
+
   /**
    * Request a sandbox token for a specific party.
-   * @param party The Canton party name (e.g., 'TSMC', 'AppleInc')
+   * @param party The Canton party name
+   * @param additionalActAs Optional array of additional parties to act as
    * @returns The JWT token and the fully qualified party ID
    */
-  async login(party: string): Promise<{ token: string; partyId: string }> {
-    const res = await client.post('/auth/token', { party });
+  async login(party: string, additionalActAs?: string[]): Promise<{ token: string; partyId: string }> {
+    const res = await client.post('/auth/token', { party, additionalActAs });
     // Save token for future requests
     localStorage.setItem('synccap_token', res.data.token);
     localStorage.setItem('synccap_partyId', res.data.partyId);
