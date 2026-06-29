@@ -14,7 +14,7 @@
 module Test.Workflow where
 
 import Daml.Script
-import Main
+import SynCCap
 
 
 -- ============================================================================

@@ -1,5 +1,5 @@
 sdk-version: 3.5.1
-name: synccap
+name: synccap-v2
 version: 0.1.0
 source: daml
 dependencies:

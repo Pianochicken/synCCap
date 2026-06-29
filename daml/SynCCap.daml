@@ -1,6 +1,6 @@
 -- | synCCap: Universal Capacity Tokenization & Privacy-Preserving Settlement
 -- |
--- | Module: Main
+-- | Module: SynCCap
 -- |
 -- | This module defines the core Daml templates for the synCCap platform,
 -- | a Canton Network application that tokenizes high-end semiconductor foundry
@@ -19,7 +19,7 @@
 -- |   - Primary Buyer: The original purchaser of foundry capacity.
 -- |   - Secondary Buyer: A party acquiring capacity on the dark pool.
 
-module Main where
+module SynCCap where
 
 
 

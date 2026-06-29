@@ -51,12 +51,12 @@ import {
 } from '../validators';
 
 // Import the package ID from the codegen output
-import { Main } from '@daml.js/synccap-0.1.0';
+import { SynCCap } from '@daml.js/synccap-0.1.0';
 
 // Alias the generated template types for cleaner usage
-type CapacityAssetType = Main.CapacityAsset;
-type TransferRFQType = Main.TransferRFQ;
-type PenaltyAgreementType = Main.PenaltyAgreement;
+type CapacityAssetType = SynCCap.CapacityAsset;
+type TransferRFQType = SynCCap.TransferRFQ;
+type PenaltyAgreementType = SynCCap.PenaltyAgreement;
 
 // ---------------------------------------------------------------------------
 // Canton JSON API v2 Constants
@@ -73,9 +73,9 @@ type PenaltyAgreementType = Main.PenaltyAgreement;
  * package upgrades and is the recommended format for application code.
  */
 const TEMPLATE_IDS = {
-  CapacityAsset: '#synccap:Main:CapacityAsset',
-  TransferRFQ: '#synccap:Main:TransferRFQ',
-  PenaltyAgreement: '#synccap:Main:PenaltyAgreement',
+  CapacityAsset: '#synccap-v2:SynCCap:CapacityAsset',
+  TransferRFQ: '#synccap-v2:SynCCap:TransferRFQ',
+  PenaltyAgreement: '#synccap-v2:SynCCap:PenaltyAgreement',
 } as const;
 
 // ---------------------------------------------------------------------------
