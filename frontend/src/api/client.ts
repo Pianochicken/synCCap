@@ -12,12 +12,26 @@ const client = axios.create({
 
 // Interceptor to attach JWT token to all requests
 client.interceptors.request.use((config) => {
-  const token = localStorage.getItem('synccap_token');
+  const token = sessionStorage.getItem('synccap_token');
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
+
+// Interceptor to handle 401 Unauthorized globally
+client.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      sessionStorage.removeItem('synccap_token');
+      sessionStorage.removeItem('synccap_partyId');
+      sessionStorage.removeItem('synccap_session');
+      window.location.href = '/'; // Force redirect to login page
+    }
+    return Promise.reject(error);
+  }
+);
 
 
 // --- API Service Functions ---
@@ -33,14 +47,14 @@ export const ApiService = {
   async login(party: string, additionalActAs?: string[]): Promise<{ token: string; partyId: string }> {
     const res = await client.post('/auth/token', { party, additionalActAs });
     // Save token for future requests
-    localStorage.setItem('synccap_token', res.data.token);
-    localStorage.setItem('synccap_partyId', res.data.partyId);
+    sessionStorage.setItem('synccap_token', res.data.token);
+    sessionStorage.setItem('synccap_partyId', res.data.partyId);
     return res.data;
   },
 
   logout() {
-    localStorage.removeItem('synccap_token');
-    localStorage.removeItem('synccap_partyId');
+    sessionStorage.removeItem('synccap_token');
+    sessionStorage.removeItem('synccap_partyId');
   },
 
   /**

@@ -40,8 +40,8 @@ function App() {
 
   const handleLogout = () => {
     sessionStorage.removeItem(SESSION_KEY);
-    localStorage.removeItem('synccap_token');
-    localStorage.removeItem('synccap_partyId');
+    sessionStorage.removeItem('synccap_token');
+    sessionStorage.removeItem('synccap_partyId');
     setSession(null);
   };
 
