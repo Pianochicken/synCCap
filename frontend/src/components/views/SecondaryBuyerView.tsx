@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ApiService } from '../../api/client';
-import { Briefcase, CheckCircle, ShieldAlert, EyeOff } from 'lucide-react';
+import { Briefcase, CheckCircle, ShieldAlert, EyeOff, FileWarning } from 'lucide-react';
 
 interface AssetPayload {
   assetId: string;
@@ -30,10 +30,11 @@ interface RFQ {
 interface SecondaryBuyerViewProps {
   assets: Asset[];
   transfers: RFQ[];
+  rejectedLogs?: any[];
   onRefresh: () => void;
 }
 
-export const SecondaryBuyerView: React.FC<SecondaryBuyerViewProps> = ({ assets, transfers, onRefresh }) => {
+export const SecondaryBuyerView: React.FC<SecondaryBuyerViewProps> = ({ assets, transfers, rejectedLogs = [], onRefresh }) => {
   const [loading, setLoading] = useState(false);
 
   const handleAcceptTransfer = async (rfqContractId: string, agreedPricePerWafer: string) => {
@@ -45,6 +46,21 @@ export const SecondaryBuyerView: React.FC<SecondaryBuyerViewProps> = ({ assets, 
     } catch (err) {
       console.error(err);
       alert('Failed to accept transfer.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRejectTransfer = async (rfqContractId: string) => {
+    if (!confirm('Are you sure you want to reject this transfer offer?')) return;
+    try {
+      setLoading(true);
+      await ApiService.rejectTransfer({ rfqContractId });
+      alert('Transfer rejected.');
+      onRefresh();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to reject transfer.');
     } finally {
       setLoading(false);
     }
@@ -174,6 +190,13 @@ export const SecondaryBuyerView: React.FC<SecondaryBuyerViewProps> = ({ assets, 
                       <CheckCircle className="w-4 h-4" />
                       Accept & Settle
                     </button>
+                    <button
+                      onClick={() => handleRejectTransfer(rfq.contractId)}
+                      disabled={loading}
+                      className="w-full mt-2 text-sm text-red-500 hover:text-red-400 py-1.5 transition-colors"
+                    >
+                      Reject Offer
+                    </button>
                   </div>
                 </div>
               </div>
@@ -181,6 +204,33 @@ export const SecondaryBuyerView: React.FC<SecondaryBuyerViewProps> = ({ assets, 
           </div>
         )}
       </div>
+
+      {rejectedLogs.length > 0 && (
+        <div className="card mt-6 border border-red-500/20">
+          <h3 className="text-lg font-bold mb-5 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center bg-red-500/10 border border-red-500/20"
+            >
+              <FileWarning className="w-4 h-4 text-red-500" />
+            </div>
+            Transfer History Logs (Private)
+          </h3>
+          <div className="space-y-3">
+            {rejectedLogs.map((log) => (
+              <div key={log.contractId} className="p-3 rounded-lg bg-red-500/5 border border-red-500/10 flex justify-between items-center">
+                <div>
+                  <div className="font-semibold text-sm text-red-400">Rejected by You</div>
+                  <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Asset: {log.payload.assetId}</div>
+                  <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Seller: {log.payload.seller.split('::')[0]}</div>
+                </div>
+                <div className="text-xs text-red-500/70 border border-red-500/20 px-2 py-1 rounded">
+                  Asking Price: ${parseFloat(log.payload.askingPricePerWafer).toLocaleString()}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Owned Assets */}
       <div className="card">

@@ -70,7 +70,7 @@ testSynCCapWorkflow = script do
   -- The asking price ($22,000) is marked up from the original $18,500 cost.
   -- Startup_ChipCo will NEVER know that Apple paid $18,500.
   -- They will only see the $22,000 asking price on the TransferRFQ.
-  transferRfqCid <- submit (actAs manufacturer <> actAs primaryBuyer) do
+  (transferRfqCid, lockCid) <- submit (actAs manufacturer <> actAs primaryBuyer) do
     exerciseCmd capacityAssetCid ProposeTransfer with
       secondaryBuyer      = secondaryBuyer
       askingPricePerWafer = 22000.0              -- Marked up from $18,500
@@ -205,5 +205,101 @@ testSynCCapWorkflow = script do
   debug "  - Penalty settlement: OK"
   debug "  - Sub-transaction privacy: OK"
   debug "============================================="
+
+  return ()
+
+
+-- ============================================================================
+-- WORKFLOW TEST: Reject and Reclaim
+-- ============================================================================
+testSynCCapRejectReclaimWorkflow : Script ()
+testSynCCapRejectReclaimWorkflow = script do
+  manufacturer   <- allocateParty "TSMC_Foundry"
+  primaryBuyer   <- allocateParty "Apple_Inc"
+  secondaryBuyer <- allocateParty "Startup_ChipCo"
+
+  capacityAssetCid <- submit (actAs manufacturer <> actAs primaryBuyer) do
+    createCmd CapacityAsset with
+      manufacturer        = manufacturer
+      owner               = primaryBuyer
+      assetId             = "LOT-REJECT-TEST-001"
+      technologyNode      = N3nm
+      waferStartsPerMonth = 500
+      costBasisPerWafer   = 18500.0
+      commitmentStartDate = "2025-07-01"
+      commitmentEndDate   = "2026-06-30"
+      status              = Active
+
+  -- Propose transfer
+  (transferRfqCid, lockCid) <- submit (actAs manufacturer <> actAs primaryBuyer) do
+    exerciseCmd capacityAssetCid ProposeTransfer with
+      secondaryBuyer      = secondaryBuyer
+      askingPricePerWafer = 22000.0
+
+  -- Secondary Buyer rejects
+  logCid <- submit secondaryBuyer do
+    exerciseCmd transferRfqCid RejectTransfer
+
+  -- Verify log is not reclaimed
+  logOpt <- queryContractId @RejectedTransferLog primaryBuyer logCid
+  let Some log = logOpt
+  assertMsg "Log should not be reclaimed initially" (not log.isReclaimed)
+
+  -- Primary buyer reclaims asset
+  newAssetCid <- submit primaryBuyer do
+    exerciseCmd lockCid AcknowledgeRejection with
+      logCid = logCid
+
+  -- Verify log is reclaimed
+  logs <- query @RejectedTransferLog primaryBuyer
+  let [(_, reclaimedLog)] = logs
+  assertMsg "Log should be marked as reclaimed" reclaimedLog.isReclaimed
+
+  -- Verify asset is back
+  assets <- query @CapacityAsset primaryBuyer
+  assertMsg "Primary buyer should have the asset back" (length assets == 1)
+  
+  return ()
+
+
+-- ============================================================================
+-- WORKFLOW TEST: Withdraw Offer
+-- ============================================================================
+testSynCCapWithdrawWorkflow : Script ()
+testSynCCapWithdrawWorkflow = script do
+  manufacturer   <- allocateParty "TSMC_Foundry"
+  primaryBuyer   <- allocateParty "Apple_Inc"
+  secondaryBuyer <- allocateParty "Startup_ChipCo"
+
+  capacityAssetCid <- submit (actAs manufacturer <> actAs primaryBuyer) do
+    createCmd CapacityAsset with
+      manufacturer        = manufacturer
+      owner               = primaryBuyer
+      assetId             = "LOT-WITHDRAW-TEST-001"
+      technologyNode      = N5nm
+      waferStartsPerMonth = 200
+      costBasisPerWafer   = 12000.0
+      commitmentStartDate = "2025-07-01"
+      commitmentEndDate   = "2026-06-30"
+      status              = Active
+
+  -- Propose transfer
+  (transferRfqCid, lockCid) <- submit (actAs manufacturer <> actAs primaryBuyer) do
+    exerciseCmd capacityAssetCid ProposeTransfer with
+      secondaryBuyer      = secondaryBuyer
+      askingPricePerWafer = 15000.0
+
+  -- Primary buyer changes mind and withdraws
+  newAssetCid <- submit primaryBuyer do
+    exerciseCmd lockCid WithdrawOffer with
+      rfqCid = transferRfqCid
+
+  -- Verify withdrawn log created
+  logs <- query @WithdrawnTransferLog primaryBuyer
+  assertMsg "Withdrawn log should be created" (length logs == 1)
+
+  -- Verify asset is back
+  assets <- query @CapacityAsset primaryBuyer
+  assertMsg "Primary buyer should have the asset back" (length assets == 1)
 
   return ()

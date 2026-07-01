@@ -31,6 +31,9 @@ import {
   CreateAssetSchema,
   ProposeTransferSchema,
   AcceptTransferSchema,
+  WithdrawRFQSchema,
+  RejectTransferSchema,
+  AcknowledgeRejectionSchema,
   InitiatePenaltySchema,
   SettlePenaltySchema,
 } from '../validators';
@@ -170,6 +173,72 @@ apiRouter.openapi(
 
 apiRouter.openapi(
   createRoute({
+    method: 'post',
+    path: '/transfers/withdraw',
+    summary: 'Withdraw a TransferRFQ',
+    request: { body: { content: { 'application/json': { schema: WithdrawRFQSchema } } } },
+    responses: {
+      200: { description: 'Transfer withdrawn', content: { 'application/json': { schema: z.any() } } }
+    }
+  }),
+  async (c) => {
+    try {
+      const data = c.req.valid('json');
+      const ctx = getPartyContext(c);
+      const result = await ledgerService.withdrawRFQ(ctx, data.rfqContractId);
+      return c.json({ message: 'Transfer RFQ withdrawn.', data: result }, 200);
+    } catch (err) {
+      return mapLedgerError(err, c, 'withdrawRFQ');
+    }
+  }
+);
+
+apiRouter.openapi(
+  createRoute({
+    method: 'post',
+    path: '/transfers/reject',
+    summary: 'Reject a TransferRFQ',
+    request: { body: { content: { 'application/json': { schema: RejectTransferSchema } } } },
+    responses: {
+      200: { description: 'Transfer rejected', content: { 'application/json': { schema: z.any() } } }
+    }
+  }),
+  async (c) => {
+    try {
+      const data = c.req.valid('json');
+      const ctx = getPartyContext(c);
+      const result = await ledgerService.rejectTransfer(ctx, data.rfqContractId);
+      return c.json({ message: 'Transfer RFQ rejected.', data: result }, 200);
+    } catch (err) {
+      return mapLedgerError(err, c, 'rejectTransfer');
+    }
+  }
+);
+
+apiRouter.openapi(
+  createRoute({
+    method: 'post',
+    path: '/transfers/acknowledge-rejection',
+    summary: 'Acknowledge a rejected transfer and restore asset',
+    request: { body: { content: { 'application/json': { schema: AcknowledgeRejectionSchema } } } },
+    responses: {
+      200: { description: 'Asset restored', content: { 'application/json': { schema: z.any() } } }
+    }
+  }),
+  async (c) => {
+    try {
+      const data = c.req.valid('json');
+      const ctx = getPartyContext(c);
+      const result = await ledgerService.acknowledgeRejection(ctx, data.logContractId);
+      return c.json({ message: 'Asset restored.', data: result }, 200);
+    } catch (err) {
+      return mapLedgerError(err, c, 'acknowledgeRejection');
+    }
+  }
+);
+
+apiRouter.openapi(
+  createRoute({
     method: 'get',
     path: '/transfers',
     summary: 'Query TransferRFQs',
@@ -248,6 +317,46 @@ apiRouter.openapi(
       return c.json({ data: penalties, count: penalties.length }, 200);
     } catch (err) {
       return mapLedgerError(err, c, 'queryPenaltyAgreements');
+    }
+  }
+);
+
+apiRouter.openapi(
+  createRoute({
+    method: 'get',
+    path: '/logs/rejected',
+    summary: 'Query RejectedTransferLogs',
+    responses: {
+      200: { description: 'List of rejected logs', content: { 'application/json': { schema: z.any() } } }
+    }
+  }),
+  async (c) => {
+    try {
+      const ctx = getPartyContext(c);
+      const logs = await ledgerService.queryRejectedLogs(ctx);
+      return c.json({ data: logs, count: logs.length }, 200);
+    } catch (err) {
+      return mapLedgerError(err, c, 'queryRejectedLogs');
+    }
+  }
+);
+
+apiRouter.openapi(
+  createRoute({
+    method: 'get',
+    path: '/logs/withdrawn',
+    summary: 'Query WithdrawnTransferLogs',
+    responses: {
+      200: { description: 'List of withdrawn logs', content: { 'application/json': { schema: z.any() } } }
+    }
+  }),
+  async (c) => {
+    try {
+      const ctx = getPartyContext(c);
+      const logs = await ledgerService.queryWithdrawnLogs(ctx);
+      return c.json({ data: logs, count: logs.length }, 200);
+    } catch (err) {
+      return mapLedgerError(err, c, 'queryWithdrawnLogs');
     }
   }
 );

@@ -46,6 +46,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ session, onLogout }) => {
   const [assets, setAssets] = useState<unknown[]>([]);
   const [transfers, setTransfers] = useState<unknown[]>([]);
   const [penalties, setPenalties] = useState<unknown[]>([]);
+  const [rejectedLogs, setRejectedLogs] = useState<unknown[]>([]);
+  const [withdrawnLogs, setWithdrawnLogs] = useState<unknown[]>([]);
   const [loadingData, setLoadingData] = useState(false);
 
   // Fetch data immediately on mount — user is authenticated
@@ -57,14 +59,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ session, onLogout }) => {
   const fetchDashboardData = async () => {
     try {
       setLoadingData(true);
-      const [assetsData, transfersData, penaltiesData] = await Promise.all([
+      const [assetsData, transfersData, penaltiesData, rejectedData, withdrawnData] = await Promise.all([
         ApiService.getAssets(),
         ApiService.getTransfers(),
         ApiService.getPenalties(),
+        ApiService.getRejectedLogs(),
+        ApiService.getWithdrawnLogs(),
       ]);
       setAssets(assetsData);
       setTransfers(transfersData);
       setPenalties(penaltiesData);
+      setRejectedLogs(rejectedData);
+      setWithdrawnLogs(withdrawnData);
     } catch (error) {
       console.error('Failed to fetch dashboard data', error);
     } finally {
@@ -166,6 +172,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ session, onLogout }) => {
             {session.role === 'PrimaryBuyer' && (
               <PrimaryBuyerView
                 assets={assets as never[]}
+                transfers={transfers as never[]}
+                rejectedLogs={rejectedLogs as never[]}
+                withdrawnLogs={withdrawnLogs as never[]}
                 onRefresh={fetchDashboardData}
               />
             )}
@@ -173,6 +182,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ session, onLogout }) => {
               <SecondaryBuyerView
                 assets={assets as never[]}
                 transfers={transfers as never[]}
+                rejectedLogs={rejectedLogs as never[]}
                 onRefresh={fetchDashboardData}
               />
             )}

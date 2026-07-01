@@ -13,14 +13,65 @@ interface Asset {
   payload: AssetPayload;
 }
 
+interface RFQPayload {
+  assetId: string;
+  seller: string;
+  buyer: string;
+  technologyNode: string;
+  askingPricePerWafer: string;
+}
+
+interface RFQ {
+  contractId: string;
+  payload: RFQPayload;
+}
+
 interface PrimaryBuyerViewProps {
   assets: Asset[];
+  transfers?: RFQ[];
+  rejectedLogs?: any[];
+  withdrawnLogs?: any[];
   onRefresh: () => void;
 }
 
-export const PrimaryBuyerView: React.FC<PrimaryBuyerViewProps> = ({ assets, onRefresh }) => {
+export const PrimaryBuyerView: React.FC<PrimaryBuyerViewProps> = ({ 
+  assets, 
+  transfers = [], 
+  rejectedLogs = [],
+  withdrawnLogs = [],
+  onRefresh 
+}) => {
   const [loading, setLoading] = useState(false);
   const [transferForms, setTransferForms] = useState<Record<string, { price: string; buyer: string }>>({});
+
+  const handleWithdrawTransfer = async (rfqContractId: string) => {
+    if (!confirm('Are you sure you want to cancel this transfer?')) return;
+    try {
+      setLoading(true);
+      await ApiService.withdrawTransfer({ rfqContractId });
+      alert('Transfer cancelled and capacity reclaimed.');
+      onRefresh();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to withdraw transfer.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAcknowledgeRejection = async (logContractId: string) => {
+    try {
+      setLoading(true);
+      await ApiService.acknowledgeRejection({ logContractId });
+      alert('Capacity reclaimed successfully.');
+      onRefresh();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to reclaim capacity.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getForm = (contractId: string) =>
     transferForms[contractId] ?? { price: '21500.00', buyer: 'QualcommInc' };
@@ -192,6 +243,113 @@ export const PrimaryBuyerView: React.FC<PrimaryBuyerViewProps> = ({ assets, onRe
           </div>
         )}
       </div>
+
+      {transfers.length > 0 && (
+        <div className="card mt-6">
+          <h3 className="text-lg font-bold mb-5 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ background: 'rgba(234,179,8,0.12)', border: '1px solid #eab308' }}
+            >
+              <Send className="w-4 h-4" style={{ color: '#eab308' }} />
+            </div>
+            Pending Dark Pool Transfers
+          </h3>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            {transfers.map((rfq) => (
+              <div
+                key={rfq.contractId}
+                className="rounded-xl overflow-hidden"
+                style={{ border: '1px solid var(--border-color)', background: 'var(--bg-surface-2)' }}
+              >
+                <div
+                  className="px-4 py-3 flex justify-between items-center"
+                  style={{
+                    borderBottom: '1px solid var(--border-color)',
+                    background: 'var(--bg-surface)',
+                  }}
+                >
+                  <div className="min-w-0 flex-1 pr-4">
+                    <h4 className="font-bold text-sm truncate" style={{ color: 'var(--text-primary)' }}>
+                      {rfq.payload.assetId}
+                    </h4>
+                    <p className="text-xs font-semibold mt-0.5 truncate" style={{ color: 'var(--primary)' }} title={rfq.payload.buyer}>
+                      To: {rfq.payload.buyer.split('::')[0]}
+                    </p>
+                  </div>
+                  <div className="text-right flex-shrink-0 flex flex-col items-end gap-2">
+                    <div>
+                      <div className="font-bold text-sm text-yellow-500">
+                        Pending Accept
+                      </div>
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                        Asking: ${parseFloat(rfq.payload.askingPricePerWafer).toLocaleString()}
+                      </p>
+                    </div>
+                    <button 
+                      onClick={() => handleWithdrawTransfer(rfq.contractId)}
+                      disabled={loading}
+                      className="text-xs px-3 py-1.5 rounded bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 transition-colors"
+                    >
+                      Cancel Transfer
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {(rejectedLogs.length > 0 || withdrawnLogs.length > 0) && (
+        <div className="card mt-6 border border-red-500/20">
+          <h3 className="text-lg font-bold mb-5 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center bg-red-500/10 border border-red-500/20"
+            >
+              <FileWarning className="w-4 h-4 text-red-500" />
+            </div>
+            Transfer History Logs (Private)
+          </h3>
+          <div className="space-y-3">
+            {rejectedLogs.map((log) => (
+              <div key={log.contractId} className="p-3 rounded-lg bg-red-500/5 border border-red-500/10 flex justify-between items-center">
+                <div>
+                  <div className="font-semibold text-sm text-red-400">Rejected by {log.payload.buyer.split('::')[0]}</div>
+                  <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Asset: {log.payload.assetId}</div>
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                  <div className="text-xs text-red-500/70 border border-red-500/20 px-2 py-1 rounded">
+                    Asking Price: ${parseFloat(log.payload.askingPricePerWafer).toLocaleString()}
+                  </div>
+                  {!log.payload.isReclaimed ? (
+                    <button
+                      onClick={() => handleAcknowledgeRejection(log.contractId)}
+                      disabled={loading}
+                      className="text-xs px-3 py-1.5 rounded bg-blue-500/10 text-blue-500 border border-blue-500/20 hover:bg-blue-500/20 transition-colors"
+                    >
+                      Reclaim Asset
+                    </button>
+                  ) : (
+                    <span className="text-xs text-green-500/80 italic">Reclaimed</span>
+                  )}
+                </div>
+              </div>
+            ))}
+            {withdrawnLogs.map((log) => (
+              <div key={log.contractId} className="p-3 rounded-lg bg-orange-500/5 border border-orange-500/10 flex justify-between items-center">
+                <div>
+                  <div className="font-semibold text-sm text-orange-400">Withdrawn by You</div>
+                  <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Asset: {log.payload.assetId}</div>
+                </div>
+                <div className="text-xs text-orange-500/70 border border-orange-500/20 px-2 py-1 rounded">
+                  Cancelled Transfer
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

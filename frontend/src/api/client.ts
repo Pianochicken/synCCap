@@ -135,5 +135,44 @@ export const ApiService = {
   async settlePenalty(payload: { penaltyContractId: string }): Promise<{ settledContractId: string }> {
     const res = await client.post('/api/v1/penalties/settle', payload);
     return res.data;
-  }
+  },
+  /**
+   * Withdraw a TransferRFQ (Seller only).
+   */
+  async withdrawTransfer(payload: { rfqContractId: string }): Promise<any> {
+    const res = await client.post('/api/v1/transfers/withdraw', payload);
+    return res.data;
+  },
+
+  /**
+   * Reject a TransferRFQ (Buyer only).
+   */
+  async rejectTransfer(payload: { rfqContractId: string }): Promise<any> {
+    const res = await client.post('/api/v1/transfers/reject', payload);
+    return res.data;
+  },
+
+  /**
+   * Acknowledge a rejected transfer and reclaim the asset (Seller only).
+   */
+  async acknowledgeRejection(payload: { logContractId: string }): Promise<any> {
+    const res = await client.post('/api/v1/transfers/acknowledge-rejection', payload);
+    return res.data;
+  },
+
+  /**
+   * Get all RejectedTransferLogs visible to the current party.
+   */
+  async getRejectedLogs(): Promise<any[]> {
+    const res = await client.get('/api/v1/logs/rejected');
+    return res.data.data || [];
+  },
+
+  /**
+   * Get all WithdrawnTransferLogs visible to the current party.
+   */
+  async getWithdrawnLogs(): Promise<any[]> {
+    const res = await client.get('/api/v1/logs/withdrawn');
+    return res.data.data || [];
+  },
 };

@@ -51,7 +51,7 @@ import {
 } from '../validators';
 
 // Import the package ID from the codegen output
-import { SynCCap } from '@daml.js/synccap-0.1.0';
+import { SynCCap } from '@daml.js/synccap-0.2.0';
 
 // Alias the generated template types for cleaner usage
 type CapacityAssetType = SynCCap.CapacityAsset;
@@ -75,7 +75,10 @@ type PenaltyAgreementType = SynCCap.PenaltyAgreement;
 const TEMPLATE_IDS = {
   CapacityAsset: '#synccap-v2:SynCCap:CapacityAsset',
   TransferRFQ: '#synccap-v2:SynCCap:TransferRFQ',
+  CapacityAssetLock: '#synccap-v2:SynCCap:CapacityAssetLock',
   PenaltyAgreement: '#synccap-v2:SynCCap:PenaltyAgreement',
+  RejectedTransferLog: '#synccap-v2:SynCCap:RejectedTransferLog',
+  WithdrawnTransferLog: '#synccap-v2:SynCCap:WithdrawnTransferLog',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -786,6 +789,112 @@ export class LedgerService {
   }
 
   /**
+   * Rejects a TransferRFQ.
+   */
+  async rejectTransfer(
+    ctx: PartyContext,
+    rfqContractId: string
+  ): Promise<{ logContractId: string }> {
+    logger.info('Rejecting transfer', {
+      party: ctx.actingParty,
+      rfqContractId,
+    });
+
+    const response = await this.submitAndWait(ctx, [
+      {
+        ExerciseCommand: {
+          templateId: TEMPLATE_IDS.TransferRFQ,
+          contractId: rfqContractId,
+          choice: 'RejectTransfer',
+          choiceArgument: {},
+        },
+      },
+    ]);
+
+    const logContractId = await this.getContractIdFromUpdate(ctx, response.completionOffset);
+    return { logContractId };
+  }
+
+  /**
+   * Withdraws a TransferRFQ.
+   */
+  async withdrawRFQ(
+    ctx: PartyContext,
+    rfqContractId: string
+  ): Promise<{ assetContractId: string }> {
+    logger.info('Withdrawing RFQ via Lock', {
+      party: ctx.actingParty,
+      rfqContractId,
+    });
+
+    // 1. Fetch the RFQ to get the assetId
+    const rfqs = await this.queryActiveContracts(ctx, TEMPLATE_IDS.TransferRFQ);
+    const rfqEvent = rfqs.find((e) => e.createdEvent.contractId === rfqContractId);
+    if (!rfqEvent) throw new Error('TransferRFQ not found or not visible.');
+    const assetId = (rfqEvent.createdEvent.createArgument as any).assetId;
+
+    // 2. Fetch the corresponding CapacityAssetLock
+    const locks = await this.queryActiveContracts(ctx, TEMPLATE_IDS.CapacityAssetLock);
+    const lockEvent = locks.find((e) => (e.createdEvent.createArgument as any).assetId === assetId);
+    if (!lockEvent) throw new Error('CapacityAssetLock not found for this asset.');
+
+    // 3. Exercise WithdrawOffer on the Lock
+    const response = await this.submitAndWait(ctx, [
+      {
+        ExerciseCommand: {
+          templateId: TEMPLATE_IDS.CapacityAssetLock,
+          contractId: lockEvent.createdEvent.contractId,
+          choice: 'WithdrawOffer',
+          choiceArgument: { rfqCid: rfqContractId },
+        },
+      },
+    ]);
+
+    const assetContractId = await this.getContractIdFromUpdate(ctx, response.completionOffset);
+    return { assetContractId };
+  }
+
+  /**
+   * Acknowledges a rejection to restore the asset via CapacityAssetLock.
+   */
+  async acknowledgeRejection(
+    ctx: PartyContext,
+    logContractId: string
+  ): Promise<{ assetContractId: string }> {
+    logger.info('Acknowledging Rejection', {
+      party: ctx.actingParty,
+      logContractId,
+    });
+
+    // 1. Fetch the RejectedTransferLog to get the assetId
+    const logs = await this.queryActiveContracts(ctx, TEMPLATE_IDS.RejectedTransferLog);
+    const logEvent = logs.find((e) => e.createdEvent.contractId === logContractId);
+    if (!logEvent) throw new Error('RejectedTransferLog not found or not visible.');
+    const assetId = (logEvent.createdEvent.createArgument as any).assetId;
+
+    // 2. Fetch the corresponding CapacityAssetLock
+    const locks = await this.queryActiveContracts(ctx, TEMPLATE_IDS.CapacityAssetLock);
+    const lockEvent = locks.find((e) => (e.createdEvent.createArgument as any).assetId === assetId);
+    if (!lockEvent) throw new Error('CapacityAssetLock not found for this asset.');
+
+    // 3. Exercise AcknowledgeRejection on the Lock
+    const response = await this.submitAndWait(ctx, [
+      {
+        ExerciseCommand: {
+          templateId: TEMPLATE_IDS.CapacityAssetLock,
+          contractId: lockEvent.createdEvent.contractId,
+          choice: 'AcknowledgeRejection',
+          choiceArgument: { logCid: logContractId },
+        },
+      },
+    ]);
+
+    const assetContractId = await this.getContractIdFromUpdate(ctx, response.completionOffset);
+    return { assetContractId };
+  }
+
+
+  /**
    * Initiates a penalty workflow by exercising `InitiatePenalty` on a
    * CapacityAsset.
    *
@@ -953,6 +1062,28 @@ export class LedgerService {
     return events.map((event) => ({
       contractId: event.createdEvent.contractId,
       payload: event.createdEvent.createArgument as unknown as PenaltyAgreementType,
+    }));
+  }
+
+  /**
+   * Queries all active RejectedTransferLog contracts visible to the acting party.
+   */
+  async queryRejectedLogs(ctx: PartyContext): Promise<any[]> {
+    const events = await this.queryActiveContracts(ctx, TEMPLATE_IDS.RejectedTransferLog);
+    return events.map((event) => ({
+      contractId: event.createdEvent.contractId,
+      payload: event.createdEvent.createArgument,
+    }));
+  }
+
+  /**
+   * Queries all active WithdrawnTransferLog contracts visible to the acting party.
+   */
+  async queryWithdrawnLogs(ctx: PartyContext): Promise<any[]> {
+    const events = await this.queryActiveContracts(ctx, TEMPLATE_IDS.WithdrawnTransferLog);
+    return events.map((event) => ({
+      contractId: event.createdEvent.contractId,
+      payload: event.createdEvent.createArgument,
     }));
   }
 }

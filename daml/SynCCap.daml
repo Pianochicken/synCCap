@@ -101,7 +101,8 @@ template CapacityAsset
     -- | Canton Privacy: The TransferRFQ contract has different signatories
     -- | than the original asset, demonstrating sub-transaction privacy.
     -- | The secondary buyer sees the RFQ but not the archived CapacityAsset.
-    choice ProposeTransfer : ContractId TransferRFQ
+    -- | The secondary buyer sees the RFQ but not the archived CapacityAsset.
+    choice ProposeTransfer : (ContractId TransferRFQ, ContractId CapacityAssetLock)
       with
         -- | The party to whom capacity is being offered.
         secondaryBuyer : Party
@@ -118,7 +119,7 @@ template CapacityAsset
           (askingPricePerWafer > 0.0)
         -- Create the RFQ. Note: the original costBasisPerWafer is NOT
         -- carried into the TransferRFQ, preserving pricing confidentiality.
-        create TransferRFQ with
+        rfqCid <- create TransferRFQ with
           manufacturer        = manufacturer
           seller              = owner
           buyer               = secondaryBuyer
@@ -128,6 +129,18 @@ template CapacityAsset
           askingPricePerWafer = askingPricePerWafer
           commitmentStartDate = commitmentStartDate
           commitmentEndDate   = commitmentEndDate
+
+        lockCid <- create CapacityAssetLock with
+          manufacturer        = manufacturer
+          owner               = owner
+          assetId             = assetId
+          technologyNode      = technologyNode
+          waferStartsPerMonth = waferStartsPerMonth
+          costBasisPerWafer   = costBasisPerWafer
+          commitmentStartDate = commitmentStartDate
+          commitmentEndDate   = commitmentEndDate
+          
+        return (rfqCid, lockCid)
 
     -- -----------------------------------------------------------------------
     -- Choice: InitiatePenalty
@@ -256,28 +269,50 @@ template TransferRFQ
     -- -----------------------------------------------------------------------
     -- Choice: RejectTransfer
     -- -----------------------------------------------------------------------
-    -- | The buyer declines the offer. The RFQ is archived and the original
-    -- | CapacityAsset should be reinstated by the seller (handled off-ledger
-    -- | or via a separate restoration workflow in production).
-    choice RejectTransfer : ()
+    -- | The buyer declines the offer. The RFQ is archived and a log is created.
+    choice RejectTransfer : ContractId RejectedTransferLog
       controller buyer
       do
-        -- In production, this would trigger a callback to restore the
-        -- original CapacityAsset. For the hackathon demo, we simply
-        -- archive the RFQ, demonstrating clean lifecycle management.
-        return ()
+        create RejectedTransferLog with
+          manufacturer = manufacturer
+          seller = seller
+          buyer = buyer
+          assetId = assetId
+          askingPricePerWafer = askingPricePerWafer
+          isReclaimed = False
 
-    -- -----------------------------------------------------------------------
-    -- Choice: WithdrawRFQ
-    -- -----------------------------------------------------------------------
-    -- | The seller withdraws their offer before the buyer acts.
-    -- | Only the seller can exercise this choice.
-    choice WithdrawRFQ : ()
+
+
+
+-- | Record of a buyer rejecting a dark pool transfer.
+template RejectedTransferLog
+  with
+    manufacturer : Party
+    seller : Party
+    buyer : Party
+    assetId : Text
+    askingPricePerWafer : Decimal
+    isReclaimed : Bool
+  where
+    signatory manufacturer, seller
+    observer buyer
+
+    choice MarkReclaimed : ContractId RejectedTransferLog
       controller seller
       do
-        return ()
+        assertMsg "Already reclaimed" (not isReclaimed)
+        create this with isReclaimed = True
 
-
+-- | Record of a seller withdrawing an RFQ from the dark pool.
+template WithdrawnTransferLog
+  with
+    manufacturer : Party
+    seller : Party
+    buyer : Party
+    assetId : Text
+  where
+    signatory manufacturer, seller
+    observer buyer
 -- ============================================================================
 -- SECTION 4: PENALTY AGREEMENT TEMPLATE
 -- ============================================================================
@@ -362,3 +397,76 @@ template PenaltyAgreement
           penaltyAmount      = newPenaltyAmount
           cancellationReason = disputeReason
           isSettled          = False
+
+-- ============================================================================
+-- SECTION 5: CAPACITY ASSET LOCK TEMPLATE
+-- ============================================================================
+
+-- | Lock contract that safely stores the original CapacityAsset details during an RFQ.
+template CapacityAssetLock
+  with
+    manufacturer : Party
+    owner : Party
+    assetId : Text
+    technologyNode : TechnologyNode
+    waferStartsPerMonth : Int
+    costBasisPerWafer : Decimal
+    commitmentStartDate : Text
+    commitmentEndDate : Text
+  where
+    signatory manufacturer, owner
+
+    -- | The seller withdraws their offer, archiving the RFQ and restoring the asset.
+    choice WithdrawOffer : ContractId CapacityAsset
+      with
+        rfqCid : ContractId TransferRFQ
+      controller owner
+      do
+        rfq <- fetch rfqCid
+        assertMsg "RFQ assetId mismatch" (rfq.assetId == assetId)
+        
+        archive rfqCid
+        
+        create WithdrawnTransferLog with
+          manufacturer = manufacturer
+          seller = owner
+          buyer = rfq.buyer
+          assetId = assetId
+
+        create CapacityAsset with
+          manufacturer = manufacturer
+          owner = owner
+          assetId = assetId
+          technologyNode = technologyNode
+          waferStartsPerMonth = waferStartsPerMonth
+          costBasisPerWafer = costBasisPerWafer
+          commitmentStartDate = commitmentStartDate
+          commitmentEndDate = commitmentEndDate
+          status = Active
+
+    -- | The seller acknowledges the buyer's rejection, restoring the asset.
+    choice AcknowledgeRejection : ContractId CapacityAsset
+      with
+        logCid : ContractId RejectedTransferLog
+      controller owner
+      do
+        log <- fetch logCid
+        assertMsg "Log assetId mismatch" (log.assetId == assetId)
+        
+        exercise logCid MarkReclaimed
+
+        create CapacityAsset with
+          manufacturer = manufacturer
+          owner = owner
+          assetId = assetId
+          technologyNode = technologyNode
+          waferStartsPerMonth = waferStartsPerMonth
+          costBasisPerWafer = costBasisPerWafer
+          commitmentStartDate = commitmentStartDate
+          commitmentEndDate = commitmentEndDate
+          status = Active
+
+    -- | Clean up the lock if the RFQ was successfully accepted by the buyer.
+    choice CleanupLock : ()
+      controller owner
+      do return ()

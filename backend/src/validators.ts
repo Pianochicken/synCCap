@@ -93,6 +93,21 @@ export const AcceptTransferSchema = z.object({
 }).openapi('AcceptTransferRequest');
 export type AcceptTransferRequest = z.infer<typeof AcceptTransferSchema>;
 
+export const WithdrawRFQSchema = z.object({
+  rfqContractId: contractIdString.openapi({ example: '00efgh...' }),
+}).openapi('WithdrawRFQRequest');
+export type WithdrawRFQRequest = z.infer<typeof WithdrawRFQSchema>;
+
+export const RejectTransferSchema = z.object({
+  rfqContractId: contractIdString.openapi({ example: '00efgh...' }),
+}).openapi('RejectTransferRequest');
+export type RejectTransferRequest = z.infer<typeof RejectTransferSchema>;
+
+export const AcknowledgeRejectionSchema = z.object({
+  logContractId: contractIdString,
+});
+export type AcknowledgeRejectionRequest = z.infer<typeof AcknowledgeRejectionSchema>;
+
 export const InitiatePenaltySchema = z.object({
   assetContractId: contractIdString.openapi({ example: '00abcd...' }),
   penaltyRate: positiveDecimalString.refine(
