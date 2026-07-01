@@ -15,7 +15,6 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ShieldCheck,
-  Layers,
   ArrowRight,
   Lock,
   Eye,

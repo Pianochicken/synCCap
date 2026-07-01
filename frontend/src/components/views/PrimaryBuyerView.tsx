@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { ApiService } from '../../api/client';
 import { PackageOpen, Send, FileWarning, TrendingUp, Lock } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import { ConfirmModal } from '../ConfirmModal';
 
 interface AssetPayload {
   assetId: string;
@@ -43,19 +45,32 @@ export const PrimaryBuyerView: React.FC<PrimaryBuyerViewProps> = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [transferForms, setTransferForms] = useState<Record<string, { price: string; buyer: string }>>({});
+  
+  const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
+  const [selectedWithdrawRfqId, setSelectedWithdrawRfqId] = useState<string | null>(null);
 
-  const handleWithdrawTransfer = async (rfqContractId: string) => {
-    if (!confirm('Are you sure you want to cancel this transfer?')) return;
+  const [penaltyModalOpen, setPenaltyModalOpen] = useState(false);
+  const [selectedPenaltyAssetId, setSelectedPenaltyAssetId] = useState<string | null>(null);
+
+  const handleWithdrawTransfer = (rfqContractId: string) => {
+    setSelectedWithdrawRfqId(rfqContractId);
+    setWithdrawModalOpen(true);
+  };
+
+  const confirmWithdrawTransfer = async () => {
+    if (!selectedWithdrawRfqId) return;
     try {
       setLoading(true);
-      await ApiService.withdrawTransfer({ rfqContractId });
-      alert('Transfer cancelled and capacity reclaimed.');
+      await ApiService.withdrawTransfer({ rfqContractId: selectedWithdrawRfqId });
+      toast.success('Transfer cancelled and capacity reclaimed.');
+      setWithdrawModalOpen(false);
       onRefresh();
     } catch (err) {
       console.error(err);
-      alert('Failed to withdraw transfer.');
+      toast.error('Failed to withdraw transfer.');
     } finally {
       setLoading(false);
+      setSelectedWithdrawRfqId(null);
     }
   };
 
@@ -63,11 +78,11 @@ export const PrimaryBuyerView: React.FC<PrimaryBuyerViewProps> = ({
     try {
       setLoading(true);
       await ApiService.acknowledgeRejection({ logContractId });
-      alert('Capacity reclaimed successfully.');
+      toast.success('Capacity reclaimed successfully.');
       onRefresh();
     } catch (err) {
       console.error(err);
-      alert('Failed to reclaim capacity.');
+      toast.error('Failed to reclaim capacity.');
     } finally {
       setLoading(false);
     }
@@ -79,7 +94,7 @@ export const PrimaryBuyerView: React.FC<PrimaryBuyerViewProps> = ({
   const handleProposeTransfer = async (assetContractId: string) => {
     const form = getForm(assetContractId);
     if (!form.price || !form.buyer) {
-      alert('Please fill out the transfer details.');
+      toast.error('Please fill out the transfer details.');
       return;
     }
     try {
@@ -89,33 +104,66 @@ export const PrimaryBuyerView: React.FC<PrimaryBuyerViewProps> = ({
         secondaryBuyer: form.buyer,
         askingPricePerWafer: form.price,
       });
-      alert('Transfer RFQ posted to the Dark Pool!');
+      toast.success('Transfer RFQ posted to the Dark Pool!');
       onRefresh();
     } catch (err) {
       console.error(err);
-      alert('Failed to propose transfer.');
+      toast.error('Failed to propose transfer.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleInitiatePenalty = async (assetContractId: string) => {
-    if (!confirm('Are you sure you want to cancel this capacity and initiate a penalty agreement?')) return;
+  const handleInitiatePenalty = (assetContractId: string) => {
+    setSelectedPenaltyAssetId(assetContractId);
+    setPenaltyModalOpen(true);
+  };
+
+  const confirmInitiatePenalty = async () => {
+    if (!selectedPenaltyAssetId) return;
     try {
       setLoading(true);
-      await ApiService.initiatePenalty({ assetContractId, penaltyRate: '0.25' });
-      alert('Penalty Agreement Initiated (Private)');
+      await ApiService.initiatePenalty({ assetContractId: selectedPenaltyAssetId, penaltyRate: '0.25' });
+      toast.success('Penalty Agreement Initiated (Private)');
+      setPenaltyModalOpen(false);
       onRefresh();
     } catch (err) {
       console.error(err);
-      alert('Failed to initiate penalty.');
+      toast.error('Failed to initiate penalty.');
     } finally {
       setLoading(false);
+      setSelectedPenaltyAssetId(null);
     }
   };
 
   return (
     <div className="space-y-6">
+      <ConfirmModal
+        isOpen={withdrawModalOpen}
+        title="Cancel Transfer"
+        message="Are you sure you want to cancel this transfer and reclaim your capacity asset?"
+        confirmText="Confirm Cancel"
+        icon="warning"
+        isLoading={loading}
+        onConfirm={confirmWithdrawTransfer}
+        onCancel={() => {
+          setWithdrawModalOpen(false);
+          setSelectedWithdrawRfqId(null);
+        }}
+      />
+      <ConfirmModal
+        isOpen={penaltyModalOpen}
+        title="Initiate Penalty"
+        message="Are you sure you want to cancel this capacity commitment and initiate a penalty agreement?"
+        confirmText="Confirm Penalty"
+        icon="alert"
+        isLoading={loading}
+        onConfirm={confirmInitiatePenalty}
+        onCancel={() => {
+          setPenaltyModalOpen(false);
+          setSelectedPenaltyAssetId(null);
+        }}
+      />
       <div className="card">
         <h3 className="text-lg font-bold mb-5 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
           <div

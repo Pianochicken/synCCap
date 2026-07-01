@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { ApiService } from '../../api/client';
 import { Briefcase, CheckCircle, ShieldAlert, EyeOff, FileWarning } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import { ConfirmModal } from '../ConfirmModal';
 
 interface AssetPayload {
   assetId: string;
@@ -36,33 +38,42 @@ interface SecondaryBuyerViewProps {
 
 export const SecondaryBuyerView: React.FC<SecondaryBuyerViewProps> = ({ assets, transfers, rejectedLogs = [], onRefresh }) => {
   const [loading, setLoading] = useState(false);
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [selectedRfqId, setSelectedRfqId] = useState<string | null>(null);
 
   const handleAcceptTransfer = async (rfqContractId: string, agreedPricePerWafer: string) => {
     try {
       setLoading(true);
       await ApiService.acceptTransfer({ rfqContractId, agreedPricePerWafer });
-      alert('Atomic Settlement Complete! You now own the Capacity Asset.');
+      toast.success('Atomic Settlement Complete! You now own the Capacity Asset.');
       onRefresh();
     } catch (err) {
       console.error(err);
-      alert('Failed to accept transfer.');
+      toast.error('Failed to accept transfer.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleRejectTransfer = async (rfqContractId: string) => {
-    if (!confirm('Are you sure you want to reject this transfer offer?')) return;
+  const handleRejectTransfer = (rfqContractId: string) => {
+    setSelectedRfqId(rfqContractId);
+    setRejectModalOpen(true);
+  };
+
+  const confirmRejectTransfer = async () => {
+    if (!selectedRfqId) return;
     try {
       setLoading(true);
-      await ApiService.rejectTransfer({ rfqContractId });
-      alert('Transfer rejected.');
+      await ApiService.rejectTransfer({ rfqContractId: selectedRfqId });
+      toast.success('Transfer rejected.');
+      setRejectModalOpen(false);
       onRefresh();
     } catch (err) {
       console.error(err);
-      alert('Failed to reject transfer.');
+      toast.error('Failed to reject transfer.');
     } finally {
       setLoading(false);
+      setSelectedRfqId(null);
     }
   };
 
@@ -73,6 +84,20 @@ export const SecondaryBuyerView: React.FC<SecondaryBuyerViewProps> = ({ assets, 
 
   return (
     <div className="space-y-6">
+      
+      <ConfirmModal
+        isOpen={rejectModalOpen}
+        title="Reject Transfer"
+        message="Are you sure you want to reject this capacity transfer offer? This action cannot be undone."
+        confirmText="Yes, Reject"
+        icon="alert"
+        isLoading={loading}
+        onConfirm={confirmRejectTransfer}
+        onCancel={() => {
+          setRejectModalOpen(false);
+          setSelectedRfqId(null);
+        }}
+      />
 
       {/* Dark Pool RFQs */}
       <div className="card" style={{ borderColor: 'rgba(79,141,255,0.3)' }}>

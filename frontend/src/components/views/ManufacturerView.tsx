@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ApiService } from '../../api/client';
 import { Cpu, DollarSign, Activity, FileWarning, CheckCircle } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 interface AssetPayload {
   assetId: string;
@@ -55,10 +56,11 @@ export const ManufacturerView: React.FC<ManufacturerViewProps> = ({ assets, pena
         commitmentStartDate: new Date().toISOString().slice(0, 10),
         commitmentEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
       });
+      toast.success('Asset issued successfully!');
       onRefresh();
     } catch (err) {
       console.error(err);
-      alert('Failed to issue asset.');
+      toast.error('Failed to issue asset.');
     } finally {
       setLoading(false);
     }
@@ -68,10 +70,11 @@ export const ManufacturerView: React.FC<ManufacturerViewProps> = ({ assets, pena
     try {
       setLoading(true);
       await ApiService.settlePenalty({ penaltyContractId: contractId });
+      toast.success('Penalty settled successfully!');
       onRefresh();
     } catch (err) {
       console.error(err);
-      alert('Failed to settle penalty.');
+      toast.error('Failed to settle penalty.');
     } finally {
       setLoading(false);
     }

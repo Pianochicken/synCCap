@@ -10,7 +10,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Layers, LogOut } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { ManufacturerView } from './views/ManufacturerView';
 import { PrimaryBuyerView } from './views/PrimaryBuyerView';
 import { SecondaryBuyerView } from './views/SecondaryBuyerView';

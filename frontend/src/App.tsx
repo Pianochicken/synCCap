@@ -17,6 +17,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { LandingPage } from './components/LandingPage';
 import { LoginPage } from './components/LoginPage';
 import { Dashboard } from './components/Dashboard';
+import { Toaster } from 'react-hot-toast';
 import type { AuthSession } from './types/AuthSession';
 
 const SESSION_KEY = 'synccap_session';
@@ -46,22 +47,24 @@ function App() {
   };
 
   return (
-    <Routes>
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
-      <Route
-        path="/dashboard"
-        element={
-          session ? (
-            <Dashboard session={session} onLogout={handleLogout} />
-          ) : (
-            <Navigate to="/login" replace />
-          )
-        }
-      />
-      {/* Redirect any unknown path to landing */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <>
+      <Toaster position="bottom-right" toastOptions={{ className: 'text-sm shadow-xl' }} />
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
+        <Route
+          path="/dashboard"
+          element={
+            session ? (
+              <Dashboard session={session} onLogout={handleLogout} />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   );
 }
 

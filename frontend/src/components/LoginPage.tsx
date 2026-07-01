@@ -13,7 +13,7 @@
 
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Layers, Zap, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { Zap, ArrowLeft, ShieldCheck } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
 import { ApiService } from '../api/client';
 import type { AuthSession, CompanyConfig, PartyRole } from '../types/AuthSession';
