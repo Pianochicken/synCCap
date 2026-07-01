@@ -119,12 +119,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         style={{ borderColor: 'var(--border-color)' }}
       >
         <Link to="/" className="flex items-center gap-3 group">
-          <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center transition-shadow group-hover:shadow-lg"
-            style={{ background: 'var(--primary)', boxShadow: '0 0 20px var(--primary-glow)' }}
-          >
-            <Layers className="w-5 h-5 text-white" />
-          </div>
+          <img 
+            src="/logo.png" 
+            alt="synCCap Logo" 
+            className="w-10 h-10 object-contain drop-shadow-[0_0_12px_rgba(79,141,255,0.5)] transition-all duration-300 group-hover:scale-105 group-hover:drop-shadow-[0_0_16px_rgba(79,141,255,0.7)]" 
+          />
           <span className="text-lg font-black tracking-tight" style={{ color: 'var(--text-primary)' }}>
             syn<span className="gradient-text">CCap</span>
           </span>

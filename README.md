@@ -1,4 +1,7 @@
-# synCCap: Private DeFi & Capital Markets for Real-World Assets
+<div align="center">
+  <img src="assets/logo.png" alt="synCCap Logo" width="200" />
+  <h1>synCCap: Private DeFi & Capital Markets for Real-World Assets</h1>
+</div>
 
 > **Track Focus:** Private DeFi & Capital Markets, TradeFi, RWA & Tokenized Assets
 

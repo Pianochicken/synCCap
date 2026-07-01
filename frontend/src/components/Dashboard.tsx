@@ -99,12 +99,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ session, onLogout }) => {
         >
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center shadow-md"
-              style={{ background: 'var(--primary)', boxShadow: '0 0 20px var(--primary-glow)' }}
-            >
-              <Layers className="w-5 h-5 text-white" />
-            </div>
+            <img 
+              src="/logo.png" 
+              alt="synCCap Logo" 
+              className="w-10 h-10 object-contain drop-shadow-[0_0_12px_rgba(79,141,255,0.5)] transition-all duration-300 hover:scale-105 hover:drop-shadow-[0_0_16px_rgba(79,141,255,0.7)]" 
+            />
             <div>
               <h1 className="text-xl font-black tracking-tight" style={{ color: 'var(--text-primary)' }}>
                 syn<span className="gradient-text">CCap</span>
