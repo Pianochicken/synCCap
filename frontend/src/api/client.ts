@@ -74,7 +74,7 @@ export const ApiService = {
   async proposeTransfer(payload: {
     assetContractId: string;
     secondaryBuyer: string;
-    askingPriceTotal: string;
+    askingPricePerWafer: string;
   }): Promise<{ rfqContractId: string }> {
     const res = await client.post('/api/v1/transfers/propose', payload);
     return res.data;
@@ -91,7 +91,7 @@ export const ApiService = {
   /**
    * Accept an RFQ (Secondary Buyer only)
    */
-  async acceptTransfer(payload: { rfqContractId: string }): Promise<{ newAssetContractId: string }> {
+  async acceptTransfer(payload: { rfqContractId: string; agreedPricePerWafer: string }): Promise<{ newAssetContractId: string }> {
     const res = await client.post('/api/v1/transfers/accept', payload);
     return res.data;
   },

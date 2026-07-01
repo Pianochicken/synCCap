@@ -36,10 +36,10 @@ interface SecondaryBuyerViewProps {
 export const SecondaryBuyerView: React.FC<SecondaryBuyerViewProps> = ({ assets, transfers, onRefresh }) => {
   const [loading, setLoading] = useState(false);
 
-  const handleAcceptTransfer = async (rfqContractId: string) => {
+  const handleAcceptTransfer = async (rfqContractId: string, agreedPricePerWafer: string) => {
     try {
       setLoading(true);
-      await ApiService.acceptTransfer({ rfqContractId });
+      await ApiService.acceptTransfer({ rfqContractId, agreedPricePerWafer });
       alert('Atomic Settlement Complete! You now own the Capacity Asset.');
       onRefresh();
     } catch (err) {
@@ -164,7 +164,10 @@ export const SecondaryBuyerView: React.FC<SecondaryBuyerViewProps> = ({ assets, 
                       ${getAskingPrice(rfq)}
                     </span>
                     <button
-                      onClick={() => handleAcceptTransfer(rfq.contractId)}
+                      onClick={() => {
+                        const raw = rfq.payload.askingPricePerWafer ?? rfq.payload.askingPriceTotal ?? '0';
+                        handleAcceptTransfer(rfq.contractId, raw);
+                      }}
                       disabled={loading}
                       className="btn-primary w-full mt-3 text-sm"
                     >

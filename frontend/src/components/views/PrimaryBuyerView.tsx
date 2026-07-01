@@ -36,7 +36,7 @@ export const PrimaryBuyerView: React.FC<PrimaryBuyerViewProps> = ({ assets, onRe
       await ApiService.proposeTransfer({
         assetContractId,
         secondaryBuyer: form.buyer,
-        askingPriceTotal: form.price,
+        askingPricePerWafer: form.price,
       });
       alert('Transfer RFQ posted to the Dark Pool!');
       onRefresh();
