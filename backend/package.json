@@ -12,11 +12,11 @@
     "start": "node dist/server.js",
     "test": "SKIP_LEDGER_TESTS=1 jest --runInBand",
     "test:ledger": "jest --runInBand --testPathPatterns=tests/integration",
-    "codegen": "cd .. && dpm build && dpm codegen-js .daml/dist/synccap-v2-0.2.1.dar -o backend/daml.js",
+    "codegen": "cd .. && dpm build && dpm codegen-js .daml/dist/synccap-v2-0.3.0.dar -o backend/daml.js",
     "lint": "eslint src --ext .ts"
   },
   "dependencies": {
-    "@daml.js/synccap-v2-0.2.1": "file:daml.js/synccap-v2-0.2.1",
+    "@daml.js/synccap-v2-0.3.0": "file:daml.js/synccap-v2-0.3.0",
     "@daml/types": "3.5.2",
     "@hono/node-server": "^2.0.5",
     "@hono/swagger-ui": "^0.6.1",

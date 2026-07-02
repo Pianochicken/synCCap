@@ -1,73 +1,59 @@
-# React + TypeScript + Vite
+# synCCap Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This directory contains the **React SPA** for the synCCap Canton Network project, built with Vite, TypeScript, and Tailwind CSS.
 
-Currently, two official plugins are available:
+## ⚡ Tech Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Framework:** [React 18](https://react.dev/) via [Vite](https://vitejs.dev/)
+- **Language:** [TypeScript](https://www.typescriptlang.org/)
+- **Styling:** [Tailwind CSS v3](https://tailwindcss.com/) + CSS Custom Properties for Theming
+- **Icons:** [Lucide React](https://lucide.dev/)
+- **HTTP Client:** [Axios](https://axios-http.com/)
 
-## React Compiler
+## ✨ Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Multi-Party Dashboard**: Simulates three different network participants (TSMC, AppleInc, QualcommInc) in a single UI.
+- **Privacy Audit Panel**: Real-time visibility matrix showing exactly what Canton allows each party to see.
+- **Light & Dark Mode**: Dynamic CSS-variable based design system that adapts perfectly to system preferences.
+- **Responsive Design**: Modern, glassmorphism-inspired UI components.
 
-## Expanding the ESLint configuration
+## 🚀 Getting Started
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Prerequisites
+- Node.js 18.20.0 or higher
+- [Backend API](../backend/README.md) running on port 3000
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### Installation
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+# Install dependencies
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Running the App
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Start the development server:
+```bash
+npm run dev
+```
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+The application will be available at `http://localhost:5173`.
+
+## 🏗 Directory Structure
+
+```text
+src/
+├── api/                   # Axios client and API wrappers
+├── components/            # Reusable UI components
+│   ├── views/             # Role-specific dashboard views
+│   │   ├── ManufacturerView.tsx
+│   │   ├── PrimaryBuyerView.tsx
+│   │   ├── SecondaryBuyerView.tsx
+│   │   └── PrivacyAuditPanel.tsx
+│   ├── LandingPage.tsx    # Marketing landing page
+│   └── PartySwitcher.tsx  # Auth role switcher
+├── context/               # React Context (e.g., ThemeContext)
+├── App.tsx                # Main router and state container
+├── main.tsx               # React root
+└── index.css              # Global styles and Tailwind imports
 ```

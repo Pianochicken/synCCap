@@ -9,6 +9,7 @@ interface AssetPayload {
   technologyNode: string;
   waferStartsPerMonth: string;
   costBasisPerWafer: string;
+  timestamp?: string;
 }
 
 interface Asset {
@@ -23,6 +24,7 @@ interface RFQPayload {
   waferStartsPerMonth: string;
   askingPricePerWafer?: string;
   askingPriceTotal?: string;
+  timestamp?: string;
 }
 
 interface RFQ {
@@ -80,7 +82,7 @@ export const SecondaryBuyerView: React.FC<SecondaryBuyerViewProps> = ({ assets, 
 
   const getAskingPrice = (rfq: RFQ) => {
     const raw = rfq.payload.askingPricePerWafer ?? rfq.payload.askingPriceTotal ?? '0';
-    return parseFloat(raw).toLocaleString();
+    return parseFloat(raw).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   return (
@@ -125,7 +127,13 @@ export const SecondaryBuyerView: React.FC<SecondaryBuyerViewProps> = ({ assets, 
           </div>
         ) : (
           <div className="space-y-4">
-            {transfers.map((rfq) => (
+            {[...transfers]
+              .sort((a, b) => {
+                if (!a.payload.timestamp) return 1;
+                if (!b.payload.timestamp) return -1;
+                return new Date(b.payload.timestamp).getTime() - new Date(a.payload.timestamp).getTime();
+              })
+              .map((rfq) => (
               <div
                 key={rfq.contractId}
                 className="p-5 rounded-xl relative overflow-hidden"
@@ -151,9 +159,14 @@ export const SecondaryBuyerView: React.FC<SecondaryBuyerViewProps> = ({ assets, 
                 <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mt-2">
                   {/* Asset info */}
                   <div>
-                    <h4 className="text-base font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
-                      {rfq.payload.assetId}
-                    </h4>
+                    <div className="flex items-center gap-2 mb-2">
+                      <h4 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
+                        {rfq.payload.assetId}
+                      </h4>
+                      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                        {rfq.payload.timestamp ? new Date(rfq.payload.timestamp).toLocaleString() : ''}
+                      </span>
+                    </div>
                     <div className="flex flex-wrap gap-4 text-sm">
                       <div>
                         <span className="block text-xs uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>
@@ -205,11 +218,19 @@ export const SecondaryBuyerView: React.FC<SecondaryBuyerViewProps> = ({ assets, 
                     <span className="text-2xl font-black" style={{ color: 'var(--text-primary)' }}>
                       ${getAskingPrice(rfq)}
                     </span>
-                    <div className="mt-2 mb-1 p-2 bg-[var(--bg-page)] rounded border border-[var(--border-color)]">
-                      <span className="block text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>Total Transfer Value</span>
-                      <span className="text-sm font-bold text-emerald-500">
-                        ${(parseFloat(rfq.payload.askingPricePerWafer ?? rfq.payload.askingPriceTotal ?? '0') * parseInt(rfq.payload.waferStartsPerMonth)).toLocaleString()}
-                      </span>
+                    <div className="mt-2 mb-1 p-2 bg-[var(--bg-page)] rounded border border-[var(--border-color)] space-y-2">
+                      <div>
+                        <span className="block text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>Monthly Transfer Value</span>
+                        <span className="text-sm font-bold text-emerald-500">
+                          ${(parseFloat(rfq.payload.askingPricePerWafer ?? rfq.payload.askingPriceTotal ?? '0') * parseInt(rfq.payload.waferStartsPerMonth)).toLocaleString()}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>Total Contract Value</span>
+                        <span className="text-sm font-bold text-emerald-500">
+                          ${(parseFloat(rfq.payload.askingPricePerWafer ?? rfq.payload.askingPriceTotal ?? '0') * parseInt(rfq.payload.waferStartsPerMonth) * 12).toLocaleString()}
+                        </span>
+                      </div>
                     </div>
                     <button
                       onClick={() => {
@@ -262,7 +283,13 @@ export const SecondaryBuyerView: React.FC<SecondaryBuyerViewProps> = ({ assets, 
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {assets.map((asset) => (
+            {[...assets]
+              .sort((a, b) => {
+                if (!a.payload.timestamp) return 1;
+                if (!b.payload.timestamp) return -1;
+                return new Date(b.payload.timestamp).getTime() - new Date(a.payload.timestamp).getTime();
+              })
+              .map((asset) => (
               <div
                 key={asset.contractId}
                 className="p-4 rounded-xl"
@@ -277,6 +304,9 @@ export const SecondaryBuyerView: React.FC<SecondaryBuyerViewProps> = ({ assets, 
                       {asset.payload.assetId}
                     </h4>
                     <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs text-[var(--text-muted)]">
+                        {asset.payload.timestamp ? new Date(asset.payload.timestamp).toLocaleString() : ''}
+                      </span>
                       <span className="badge badge-green">Active</span>
                       <span className="text-xs font-semibold" style={{ color: 'var(--primary)' }}>
                         {asset.payload.technologyNode}
@@ -285,7 +315,7 @@ export const SecondaryBuyerView: React.FC<SecondaryBuyerViewProps> = ({ assets, 
                   </div>
                   <div className="text-right">
                     <div className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
-                      ${parseFloat(asset.payload.costBasisPerWafer).toLocaleString()}
+                      ${parseFloat(asset.payload.costBasisPerWafer).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
                     <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
                       Your Cost Basis
@@ -304,10 +334,20 @@ export const SecondaryBuyerView: React.FC<SecondaryBuyerViewProps> = ({ assets, 
                   </div>
                   <div>
                     <span className="block text-xs uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>
-                      Total Value
+                      Monthly Value
                     </span>
                     <span className="font-bold text-sm text-emerald-500">
                       ${(parseFloat(asset.payload.costBasisPerWafer) * parseInt(asset.payload.waferStartsPerMonth)).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4 bg-[var(--bg-surface)] p-3 rounded-lg border border-[var(--border-color)] mb-3">
+                  <div>
+                    <span className="block text-xs uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>
+                      Total Contract Value
+                    </span>
+                    <span className="font-bold text-sm text-emerald-500">
+                      ${(parseFloat(asset.payload.costBasisPerWafer) * parseInt(asset.payload.waferStartsPerMonth) * 12).toLocaleString()}
                     </span>
                   </div>
                 </div>
@@ -333,14 +373,37 @@ export const SecondaryBuyerView: React.FC<SecondaryBuyerViewProps> = ({ assets, 
           </h3>
           <div className="space-y-3">
             {rejectedLogs.map((log) => (
-              <div key={log.contractId} className="p-3 rounded-lg bg-red-500/5 border border-red-500/10 flex justify-between items-center">
-                <div>
-                  <div className="font-semibold text-sm text-red-400">Rejected by You</div>
-                  <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Asset: {log.payload.assetId}</div>
-                  <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Seller: {log.payload.seller.split('::')[0]}</div>
+              <div key={log.contractId} className="p-4 rounded-lg bg-red-500/5 border border-red-500/10 flex flex-col gap-3">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <div className="font-semibold text-sm text-red-400">Rejected by You</div>
+                    <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Asset: {log.payload.assetId}</div>
+                    <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Seller: {log.payload.seller.split('::')[0]}</div>
+                    <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                      {log.payload.timestamp ? new Date(log.payload.timestamp).toLocaleString() : ''}
+                    </div>
+                  </div>
+                  <div className="text-xs text-red-500/70 border border-red-500/20 px-2 py-1 rounded">
+                    Rejected Offer
+                  </div>
                 </div>
-                <div className="text-xs text-red-500/70 border border-red-500/20 px-2 py-1 rounded">
-                  Asking Price: ${parseFloat(log.payload.askingPricePerWafer).toLocaleString()}
+                <div className="grid grid-cols-2 gap-4 bg-[var(--bg-surface)] p-3 rounded-lg border border-red-500/10">
+                  <div>
+                    <span className="block text-xs uppercase tracking-wider mb-0.5 text-red-500/70">Monthly Wafers</span>
+                    <span className="font-medium text-sm text-red-400">{parseInt(log.payload.waferStartsPerMonth).toLocaleString()}</span>
+                  </div>
+                  <div>
+                    <span className="block text-xs uppercase tracking-wider mb-0.5 text-red-500/70">Unit Price (Asking)</span>
+                    <span className="font-medium text-sm text-red-400">${parseFloat(log.payload.askingPricePerWafer).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                  <div>
+                    <span className="block text-xs uppercase tracking-wider mb-0.5 text-red-500/70">Monthly Transfer Value</span>
+                    <span className="font-bold text-sm text-red-400">${(parseFloat(log.payload.askingPricePerWafer) * parseInt(log.payload.waferStartsPerMonth)).toLocaleString()}</span>
+                  </div>
+                  <div>
+                    <span className="block text-xs uppercase tracking-wider mb-0.5 text-red-500/70">Total Contract Value</span>
+                    <span className="font-bold text-sm text-red-400">${(parseFloat(log.payload.askingPricePerWafer) * parseInt(log.payload.waferStartsPerMonth) * 12).toLocaleString()}</span>
+                  </div>
                 </div>
               </div>
             ))}

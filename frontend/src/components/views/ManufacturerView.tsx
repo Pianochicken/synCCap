@@ -10,6 +10,7 @@ interface AssetPayload {
   waferStartsPerMonth: string;
   costBasisPerWafer: string;
   status: string;
+  timestamp?: string;
 }
 
 interface Asset {
@@ -24,6 +25,7 @@ interface PenaltyPayload {
   penaltyRate: string;
   waferStartsPerMonth: string;
   costBasisPerWafer: string;
+  timestamp?: string;
 }
 
 interface Penalty {
@@ -39,7 +41,12 @@ interface ManufacturerViewProps {
 
 export const ManufacturerView: React.FC<ManufacturerViewProps> = ({ assets, penalties, onRefresh }) => {
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    owner: string;
+    technologyNode: string;
+    waferStartsPerMonth: number | string;
+    costBasisPerWafer: string;
+  }>({
     owner: 'AppleInc',
     technologyNode: 'N3nm',
     waferStartsPerMonth: 10000,
@@ -54,7 +61,7 @@ export const ManufacturerView: React.FC<ManufacturerViewProps> = ({ assets, pena
         owner: formData.owner,
         assetId: `WAFER-BATCH-${Math.floor(Math.random() * 100000)}`,
         technologyNode: formData.technologyNode as 'N3nm' | 'N5nm' | 'N7nm' | 'N14nm',
-        waferStartsPerMonth: formData.waferStartsPerMonth,
+        waferStartsPerMonth: Number(formData.waferStartsPerMonth) || 0,
         costBasisPerWafer: formData.costBasisPerWafer,
         commitmentStartDate: new Date().toISOString().slice(0, 10),
         commitmentEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
@@ -136,7 +143,7 @@ export const ManufacturerView: React.FC<ManufacturerViewProps> = ({ assets, pena
                   className="input-field"
                   value={formData.waferStartsPerMonth}
                   onChange={(e) =>
-                    setFormData({ ...formData, waferStartsPerMonth: parseInt(e.target.value) })
+                    setFormData({ ...formData, waferStartsPerMonth: e.target.value ? parseInt(e.target.value) : '' })
                   }
                 />
               </div>
@@ -155,7 +162,7 @@ export const ManufacturerView: React.FC<ManufacturerViewProps> = ({ assets, pena
                   type="text"
                   className="input-field pl-7"
                   value={formData.costBasisPerWafer}
-                  onChange={(e) => setFormData({ ...formData, costBasisPerWafer: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, costBasisPerWafer: e.target.value.replace(/[^0-9.]/g, '') })}
                 />
               </div>
               <p className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>
@@ -164,9 +171,9 @@ export const ManufacturerView: React.FC<ManufacturerViewProps> = ({ assets, pena
             </div>
 
             <div className="p-3 bg-[var(--bg-surface-2)] rounded-lg border border-[var(--border-color)] flex justify-between items-center mb-6">
-              <span className="text-sm font-semibold text-[var(--text-secondary)]">Total Contract Value</span>
+              <span className="text-sm font-semibold text-[var(--text-secondary)]">Total Contract Value (12 Months)</span>
               <span className="text-lg font-bold text-emerald-500">
-                ${(formData.waferStartsPerMonth * parseFloat(formData.costBasisPerWafer || '0')).toLocaleString()}
+                ${((Number(formData.waferStartsPerMonth) || 0) * (parseFloat(formData.costBasisPerWafer) || 0) * 12).toLocaleString()}
               </span>
             </div>
 
@@ -204,7 +211,13 @@ export const ManufacturerView: React.FC<ManufacturerViewProps> = ({ assets, pena
             </div>
           ) : (
             <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
-              {assets.map((asset) => (
+              {[...assets]
+                .sort((a, b) => {
+                  if (!a.payload.timestamp) return 1;
+                  if (!b.payload.timestamp) return -1;
+                  return new Date(b.payload.timestamp).getTime() - new Date(a.payload.timestamp).getTime();
+                })
+                .map((asset) => (
                 <div
                   key={asset.contractId}
                   className="p-4 rounded-xl"
@@ -220,7 +233,12 @@ export const ManufacturerView: React.FC<ManufacturerViewProps> = ({ assets, pena
                     >
                       {asset.payload.assetId}
                     </div>
-                    <span className="badge-green shrink-0">{asset.payload.status}</span>
+                    <span className="text-xs text-[var(--text-muted)]">
+                      {asset.payload.timestamp ? new Date(asset.payload.timestamp).toLocaleString() : ''}
+                    </span>
+                    <span className={`badge shrink-0 ${asset.payload.status === 'Active' ? 'badge-green' : 'badge-amber'}`}>
+                      {asset.payload.status || 'Active'}
+                    </span>
                   </div>
                   <div className="text-xs space-y-1">
                     <div style={{ color: 'var(--text-secondary)' }}>
@@ -244,9 +262,23 @@ export const ManufacturerView: React.FC<ManufacturerViewProps> = ({ assets, pena
                         </div>
                       </div>
                       <div className="text-right">
-                        <div style={{ color: 'var(--text-muted)' }}>Total Value</div>
+                        <div style={{ color: 'var(--text-muted)' }}>Unit Price</div>
+                        <div className="font-medium" style={{ color: 'var(--text-secondary)' }}>
+                          ${parseFloat(asset.payload.costBasisPerWafer).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex justify-between mt-2 pt-2 border-t border-[var(--border-color)]">
+                      <div>
+                        <div style={{ color: 'var(--text-muted)' }}>Monthly Value</div>
                         <div className="font-bold text-emerald-500">
                           ${(parseFloat(asset.payload.costBasisPerWafer) * parseInt(asset.payload.waferStartsPerMonth)).toLocaleString()}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div style={{ color: 'var(--text-muted)' }}>Total Contract Value</div>
+                        <div className="font-bold text-emerald-500">
+                          ${(parseFloat(asset.payload.costBasisPerWafer) * parseInt(asset.payload.waferStartsPerMonth) * 12).toLocaleString()}
                         </div>
                       </div>
                     </div>
@@ -292,7 +324,13 @@ export const ManufacturerView: React.FC<ManufacturerViewProps> = ({ assets, pena
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {penalties.map((p) => (
+            {[...penalties]
+              .sort((a, b) => {
+                if (!a.payload.timestamp) return 1;
+                if (!b.payload.timestamp) return -1;
+                return new Date(b.payload.timestamp).getTime() - new Date(a.payload.timestamp).getTime();
+              })
+              .map((p) => (
               <div
                 key={p.contractId}
                 className="rounded-xl overflow-hidden"
@@ -309,9 +347,14 @@ export const ManufacturerView: React.FC<ManufacturerViewProps> = ({ assets, pena
                   }}
                 >
                   <div>
-                    <h4 className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
-                      {p.payload.assetId}
-                    </h4>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
+                        {p.payload.assetId}
+                      </h4>
+                      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                        {p.payload.timestamp ? new Date(p.payload.timestamp).toLocaleString() : ''}
+                      </span>
+                    </div>
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20">
                         Pending Settlement
@@ -342,7 +385,7 @@ export const ManufacturerView: React.FC<ManufacturerViewProps> = ({ assets, pena
                         Unit Cost Basis
                       </span>
                       <span className="font-medium" style={{ color: 'var(--text-secondary)' }}>
-                        ${parseFloat(p.payload.costBasisPerWafer).toLocaleString()}
+                        ${parseFloat(p.payload.costBasisPerWafer).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </div>
                     <div className="pt-2 border-t border-[var(--border-color)]">

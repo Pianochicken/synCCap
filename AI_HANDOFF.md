@@ -30,32 +30,41 @@ The complete Daml smart contract layer for the synCCap platform. All templates, 
 | File | Purpose |
 |:-----|:--------|
 | `daml.yaml` | Project configuration targeting Daml SDK 3.5.1 with `daml-script` dependency |
-| `daml/Main.daml` | Core templates, choices, enumerations, and end-to-end Daml Script test (365 lines) |
+| `daml/SynCCap.daml` | Core templates, choices, enumerations, and end-to-end Daml Script test |
+| `daml/Test/Workflow.daml` | Workflow tests |
 
-### Templates (3 Core Contracts)
+### Templates (5 Core Contracts)
 
 1. **`CapacityAsset`** — The RWA token representing semiconductor foundry capacity.
    - **Signatories:** `manufacturer`, `owner` (dual-control authorization)
    - **Observers:** None (invisible to non-stakeholders by default)
-   - **Privacy-Critical Field:** `costBasisPerWafer` — NEVER carried forward during transfers
-   - **Choices:** `ProposeTransfer`, `InitiatePenalty`
+   - **Choices:** `ProposeTransfer`
 
-2. **`TransferRFQ`** — Dark pool mechanism for secondary capacity trading.
+2. **`CapacityFinancials`** — Holds the original cost basis securely.
+   - **Signatories:** `creditor`, `debtor`
+   - **Privacy-Critical Field:** `costBasisPerWafer` — Separated from the asset so it is NEVER exposed to secondary buyers.
+   - **Choices:** `InitiatePenalty`
+
+3. **`CapacityAssetLock`** — Represents a locked capacity while an RFQ is pending.
+   - **Signatories:** `manufacturer`, `owner`
+   - **Observers:** `buyer`
+
+4. **`TransferRFQ`** — Dark pool mechanism for secondary capacity trading.
    - **Signatories:** `manufacturer`, `seller`
    - **Observers:** `buyer` (sees asking price and lot details, NOT original cost)
-   - **Choices:** `AcceptTransfer` (atomic settlement), `RejectTransfer`, `WithdrawRFQ`
+   - **Choices:** `AcceptTransfer` (atomic settlement), `RejectTransfer`, `WithdrawOffer`
 
-3. **`PenaltyAgreement`** — Confidential bilateral penalty for capacity cancellation.
+5. **`PenaltyAgreement`** — Confidential bilateral penalty for capacity cancellation.
    - **Signatories:** `manufacturer`, `penalizedParty`
    - **Observers:** None (completely invisible to all other participants)
-   - **Choices:** `SettlePenalty`, `DisputePenalty`
+   - **Choices:** `SettlePenalty`
 
 ### Canton Propositions Demonstrated
 
 | Canton Feature | Where Demonstrated |
 |:--------------|:-------------------|
-| **Sub-Transaction Privacy** | `ProposeTransfer` archives the `CapacityAsset` (with `costBasisPerWafer`) in a sub-transaction invisible to the Secondary Buyer |
-| **Atomic Settlement** | `AcceptTransfer` atomically archives the RFQ and creates a new `CapacityAsset` — no intermediate state |
+| **Sub-Transaction Privacy** | `CapacityFinancials` separates cost basis from `CapacityAsset`, ensuring it's invisible to the Secondary Buyer during `TransferRFQ`. |
+| **Atomic Settlement** | `AcceptTransfer` atomically archives the RFQ and Lock, and creates a new `CapacityAsset` and `CapacityFinancials` — no intermediate state |
 | **Multi-Party Workflows** | Three roles coordinate without a central intermediary |
 | **Need-to-Know Visibility** | `PenaltyAgreement` has zero observers — competitors cannot detect cancellations |
 
@@ -63,8 +72,7 @@ The complete Daml smart contract layer for the synCCap platform. All templates, 
 
 ```bash
 dpm build                                                   # Compile contracts
-dpm test                                                    # Run Daml Script tests
-dpm sandbox --json-api-port 7575 --dar .daml/dist/synccap-0.1.0.dar  # Start sandbox
+dpm sandbox --json-api-port 7575 --dar .daml/dist/synccap-v2-0.3.0.dar  # Start sandbox
 ```
 
 ---
@@ -95,7 +103,7 @@ A production-structured Hono REST API that bridges HTTP clients to the Canton Da
 
 | File | Purpose |
 |:-----|:--------|
-| `backend/package.json` | Dependencies: `@daml.js/synccap-0.1.0`, `hono`, `@hono/node-server`, `@hono/zod-openapi`, `jsonwebtoken`, `winston` |
+| `backend/package.json` | Dependencies: `@daml.js/synccap-v2-0.3.0`, `hono`, `@hono/node-server`, `@hono/zod-openapi`, `jsonwebtoken`, `winston` |
 | `backend/tsconfig.json` | Strict TypeScript with path alias for codegen output |
 | `backend/.env` | Local environment config (not committed) |
 | `backend/.env.example` | Environment variable documentation |
@@ -133,7 +141,7 @@ LEDGER_API_BASE_URL=http://localhost:7575
 LEDGER_ID=sandbox
 JWT_SECRET=super-secret-dev-key-replace-in-production
 JWT_EXPIRY_SECONDS=3600
-PORT=4000
+PORT=3000
 NODE_ENV=development
 CORS_ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3001
 ```
@@ -142,7 +150,7 @@ CORS_ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3001
 
 ```bash
 cd backend
-cp .env.example .env     # Edit PORT if 4000 is taken
+cp .env.example .env     # Edit PORT if 3000 is taken
 npm install
 npm run dev              # Dev server with hot-reload (nodemon + ts-node)
 ```
@@ -180,7 +188,7 @@ The design system is built on CSS custom properties (`:root` for light, `.dark` 
 ### Frontend Environment
 
 ```
-VITE_API_BASE_URL=http://localhost:4000   # Backend URL (defaults to :4000 if not set)
+VITE_API_BASE_URL=http://localhost:3000   # Backend URL (defaults to :3000 if not set)
 ```
 
 ### How to Run
@@ -244,7 +252,7 @@ synCCap/
 └── frontend/
     ├── index.html                       # Inter font, SEO meta tags
     ├── tailwind.config.js               # darkMode: 'class', custom colors & keyframes
-    ├── .env                             # VITE_API_BASE_URL (defaults to :4000)
+    ├── .env                             # VITE_API_BASE_URL (defaults to :3000)
     └── src/
         ├── main.tsx                     # Root; wraps in ThemeProvider
         ├── App.tsx                      # Page router: landing / dashboard
@@ -270,11 +278,11 @@ synCCap/
 
 ```bash
 # Terminal 1 — Canton Ledger Sandbox (must start first)
-dpm sandbox --json-api-port 7575 --dar .daml/dist/synccap-0.1.0.dar
+dpm sandbox --json-api-port 7575 --dar .daml/dist/synccap-v2-0.3.0.dar
 
 # Terminal 2 — Backend REST API
 cd backend && npm run dev
-# Starts at http://localhost:4000  |  Swagger UI: http://localhost:4000/swagger
+# Starts at http://localhost:3000  |  Swagger UI: http://localhost:3000/swagger
 
 # Terminal 3 — React Frontend
 cd frontend && npm run dev

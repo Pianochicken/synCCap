@@ -25,7 +25,7 @@ graph TD
     end
 ```
 
-*   **Smart Contracts (Phase 1):** Pure Daml. Defines templates for `CapacityAsset`, `TransferRFQ`, and `PenaltyAgreement`.
+*   **Smart Contracts (Phase 1):** Pure Daml. Defines templates for `CapacityAsset`, `CapacityFinancials`, `CapacityAssetLock`, `TransferRFQ`, and `PenaltyAgreement`.
 *   **Backend (Phase 2):** Node.js / TypeScript. Uses Hono to expose a REST API. Wraps the Canton JSON API V2 and handles JWT Sandbox authentication.
 *   **Frontend (Phase 3):** React + Tailwind CSS + Lucide Icons. Provides role-based views (Manufacturer, Primary Buyer, Secondary Buyer) to visually demonstrate Canton's privacy guarantees.
 
@@ -40,7 +40,7 @@ Run the Daml sandbox to simulate the Canton Network and expose the Ledger API on
 ```bash
 # In Terminal 1 (Root directory)
 dpm build
-dpm sandbox --json-api-port 7575 --dar .daml/dist/synccap-0.1.0.dar
+dpm sandbox --json-api-port 7575 --dar .daml/dist/synccap-v2-0.3.0.dar
 ```
 
 ### Step 2: Start the Backend REST API

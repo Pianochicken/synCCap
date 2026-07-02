@@ -175,6 +175,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ session, onLogout }) => {
                 transfers={transfers as never[]}
                 rejectedLogs={rejectedLogs as never[]}
                 withdrawnLogs={withdrawnLogs as never[]}
+                penalties={penalties as never[]}
                 onRefresh={fetchDashboardData}
               />
             )}

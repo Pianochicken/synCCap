@@ -45,7 +45,79 @@ data AssetStatus
 
 
 -- ============================================================================
--- SECTION 2: CAPACITY ASSET TEMPLATE
+-- SECTION 2: CAPACITY FINANCIALS (NEW)
+-- ============================================================================
+
+-- | CapacityFinancials: The financial obligation decoupled from the operational asset.
+-- |
+-- | Privacy Design:
+-- |   - Only the `creditor` (party receiving penalty) and `debtor` (party paying penalty) are signatories.
+-- |   - This contract represents a sub-lease in the secondary market or the original issuance in the primary market.
+template CapacityFinancials
+  with
+    -- | The party owed the penalty payment.
+    creditor            : Party
+    -- | The party who owes the penalty payment.
+    debtor              : Party
+    -- | Reference to the original capacity lot.
+    assetId             : Text
+    -- | The semiconductor process node for this capacity.
+    technologyNode      : TechnologyNode
+    -- | Number of wafer starts per month allocated in this lot.
+    waferStartsPerMonth : Int
+    -- | The price paid per wafer by the debtor to the creditor.
+    costBasisPerWafer   : Decimal
+    -- | The time when this financial obligation was created.
+    timestamp           : Time
+  where
+    -- Strictly bilateral
+    signatory creditor, debtor
+
+    -- -----------------------------------------------------------------------
+    -- Choice: InitiatePenalty
+    -- -----------------------------------------------------------------------
+    -- | The debtor cancels their capacity commitment, triggering a penalty
+    -- | settlement with the creditor. This creates a PenaltyAgreement between
+    -- | the creditor and debtor ONLY.
+    choice InitiatePenalty : ContractId PenaltyAgreement
+      with
+        assetCid : ContractId CapacityAsset
+        -- | Penalty rate as a decimal (e.g., 0.25 = 25% of total commitment value).
+        penaltyRate : Decimal
+        -- | Human-readable reason for the cancellation.
+        cancellationReason : Text
+      controller debtor
+      do
+        now <- getTime
+        
+        -- Fetch and archive the CapacityAsset
+        asset <- fetch assetCid
+        assertMsg "Asset ID mismatch" (asset.assetId == assetId)
+        assertMsg "Owner mismatch" (asset.owner == debtor)
+        assertMsg "Manufacturer mismatch" (asset.manufacturer == creditor)
+        archive assetCid
+        
+        assertMsg "Penalty rate must be between 0 and 1"
+          (penaltyRate > 0.0 && penaltyRate <= 1.0)
+        -- Calculate the total penalty amount.
+        -- Formula: waferStarts * costBasis * 12 months * penaltyRate
+        let totalCommitmentValue = (intToDecimal waferStartsPerMonth) * costBasisPerWafer * 12.0
+        let penaltyAmount = totalCommitmentValue * penaltyRate
+        create PenaltyAgreement with
+          manufacturer       = creditor
+          penalizedParty     = debtor
+          assetId            = assetId
+          technologyNode     = technologyNode
+          penaltyRate        = penaltyRate
+          penaltyAmount      = penaltyAmount
+          cancellationReason = cancellationReason
+          waferStartsPerMonth = waferStartsPerMonth
+          costBasisPerWafer  = costBasisPerWafer
+          isSettled          = False
+          timestamp          = now
+
+-- ============================================================================
+-- SECTION 3: CAPACITY ASSET TEMPLATE
 -- ============================================================================
 
 -- | CapacityAsset: The core RWA token representing semiconductor foundry capacity.
@@ -71,16 +143,15 @@ template CapacityAsset
     technologyNode      : TechnologyNode
     -- | Number of wafer starts per month allocated in this lot.
     waferStartsPerMonth : Int
-    -- | The price paid per wafer by the CURRENT owner.
-    -- | PRIVACY-CRITICAL: This value is never revealed to subsequent buyers.
-    -- | Each transfer creates a new contract with the transfer price as cost basis.
-    costBasisPerWafer   : Decimal
+    -- Note: costBasisPerWafer is moved to CapacityFinancials.
     -- | ISO-8601 date string for when this capacity commitment begins.
     commitmentStartDate : Text
     -- | ISO-8601 date string for when this capacity commitment ends.
     commitmentEndDate   : Text
-    -- | Current lifecycle status of this asset.
+    -- | Current status of the asset.
     status              : AssetStatus
+    -- | Time when this asset was created or last transferred.
+    timestamp           : Time
   where
     -- Both manufacturer and owner must authorize all lifecycle transitions.
     -- This enforces dual-control: the foundry cannot unilaterally reassign
@@ -111,6 +182,7 @@ template CapacityAsset
         askingPricePerWafer : Decimal
       controller owner
       do
+        now <- getTime
         -- Validate the asset is in a transferable state.
         assertMsg "Only Active assets can be proposed for transfer"
           (status == Active)
@@ -129,6 +201,7 @@ template CapacityAsset
           askingPricePerWafer = askingPricePerWafer
           commitmentStartDate = commitmentStartDate
           commitmentEndDate   = commitmentEndDate
+          timestamp           = now
 
         lockCid <- create CapacityAssetLock with
           manufacturer        = manufacturer
@@ -136,51 +209,15 @@ template CapacityAsset
           assetId             = assetId
           technologyNode      = technologyNode
           waferStartsPerMonth = waferStartsPerMonth
-          costBasisPerWafer   = costBasisPerWafer
+          buyer               = secondaryBuyer
+          -- costBasisPerWafer removed
           commitmentStartDate = commitmentStartDate
           commitmentEndDate   = commitmentEndDate
+          timestamp           = now
           
         return (rfqCid, lockCid)
 
-    -- -----------------------------------------------------------------------
-    -- Choice: InitiatePenalty
-    -- -----------------------------------------------------------------------
-    -- | The owner cancels their capacity commitment, triggering a penalty
-    -- | settlement with the manufacturer. This choice:
-    -- |   1. Archives the current CapacityAsset.
-    -- |   2. Creates a PenaltyAgreement between manufacturer and owner ONLY.
-    -- |   3. No other party learns about the cancellation or penalty terms.
-    -- |
-    -- | Canton Privacy: The PenaltyAgreement is strictly bilateral.
-    -- | No secondary market participant can infer that capacity was canceled.
-    choice InitiatePenalty : ContractId PenaltyAgreement
-      with
-        -- | Penalty rate as a decimal (e.g., 0.25 = 25% of total commitment value).
-        penaltyRate : Decimal
-        -- | Human-readable reason for the cancellation.
-        cancellationReason : Text
-      controller owner
-      do
-        assertMsg "Only Active assets can be penalized"
-          (status == Active)
-        assertMsg "Penalty rate must be between 0 and 1"
-          (penaltyRate > 0.0 && penaltyRate <= 1.0)
-        -- Calculate the total penalty amount.
-        -- Formula: waferStarts * costBasis * penaltyRate
-        let totalCommitmentValue = (intToDecimal waferStartsPerMonth) * costBasisPerWafer
-        let penaltyAmount = totalCommitmentValue * penaltyRate
-        create PenaltyAgreement with
-          manufacturer       = manufacturer
-          penalizedParty     = owner
-          assetId            = assetId
-          technologyNode     = technologyNode
-          penaltyRate        = penaltyRate
-          penaltyAmount      = penaltyAmount
-          cancellationReason = cancellationReason
-          waferStartsPerMonth = waferStartsPerMonth
-          costBasisPerWafer  = costBasisPerWafer
-          isSettled          = False
-
+    -- Note: InitiatePenalty is moved to CapacityFinancials.
 
 -- ============================================================================
 -- SECTION 3: TRANSFER RFQ TEMPLATE (Dark Pool Mechanism)
@@ -224,6 +261,8 @@ template TransferRFQ
     commitmentStartDate : Text
     -- | Commitment end date.
     commitmentEndDate   : Text
+    -- | Time when this RFQ was created.
+    timestamp           : Time
   where
     -- Seller and manufacturer must both authorize the RFQ.
     -- The manufacturer's signature ensures foundry-level approval of the transfer.
@@ -246,27 +285,49 @@ template TransferRFQ
     -- |   happen in a single, atomic transaction. There is no intermediate
     -- |   state where capacity exists without an owner or where the buyer
     -- |   has paid without receiving the asset.
-    choice AcceptTransfer : ContractId CapacityAsset
+    choice AcceptTransfer : (ContractId CapacityAsset, ContractId CapacityFinancials)
       with
         -- | The final negotiated price (may differ from asking price).
         agreedPricePerWafer : Decimal
+        -- | The lock to be archived
+        lockCid : ContractId CapacityAssetLock
       controller buyer
       do
+        now <- getTime
         assertMsg "Agreed price must be positive"
           (agreedPricePerWafer > 0.0)
+          
+        -- We must fetch the lock to verify it belongs to this RFQ
+        lock <- fetch lockCid
+        assertMsg "Lock assetId mismatch" (lock.assetId == assetId)
+        assertMsg "Lock seller mismatch" (lock.owner == seller)
+        
+        -- Archive the lock, fixing the dangling Pending Transfer bug!
+        archive lockCid
+
         -- Atomic creation of the new CapacityAsset for the buyer.
-        -- Note: costBasisPerWafer is set to the AGREED transfer price.
-        -- The original seller's cost basis is permanently severed.
-        create CapacityAsset with
+        assetCid <- create CapacityAsset with
           manufacturer        = manufacturer
           owner               = buyer
           assetId             = assetId
           technologyNode      = technologyNode
           waferStartsPerMonth = waferStartsPerMonth
-          costBasisPerWafer   = agreedPricePerWafer
           commitmentStartDate = commitmentStartDate
           commitmentEndDate   = commitmentEndDate
           status              = Active
+          timestamp           = now
+          
+        -- Create the new financial obligation between seller and buyer (Sub-lease)
+        finCid <- create CapacityFinancials with
+          creditor            = seller
+          debtor              = buyer
+          assetId             = assetId
+          technologyNode      = technologyNode
+          waferStartsPerMonth = waferStartsPerMonth
+          costBasisPerWafer   = agreedPricePerWafer
+          timestamp           = now
+
+        return (assetCid, finCid)
 
     -- -----------------------------------------------------------------------
     -- Choice: RejectTransfer
@@ -275,13 +336,16 @@ template TransferRFQ
     choice RejectTransfer : ContractId RejectedTransferLog
       controller buyer
       do
+        now <- getTime
         create RejectedTransferLog with
           manufacturer = manufacturer
           seller = seller
           buyer = buyer
           assetId = assetId
+          waferStartsPerMonth = waferStartsPerMonth
           askingPricePerWafer = askingPricePerWafer
           isReclaimed = False
+          timestamp = now
 
 
 
@@ -293,8 +357,10 @@ template RejectedTransferLog
     seller : Party
     buyer : Party
     assetId : Text
+    waferStartsPerMonth : Int
     askingPricePerWafer : Decimal
     isReclaimed : Bool
+    timestamp : Time
   where
     signatory manufacturer, seller
     observer buyer
@@ -312,6 +378,9 @@ template WithdrawnTransferLog
     seller : Party
     buyer : Party
     assetId : Text
+    waferStartsPerMonth : Int
+    askingPricePerWafer : Decimal
+    timestamp : Time
   where
     signatory manufacturer, seller
     observer buyer
@@ -356,6 +425,8 @@ template PenaltyAgreement
     costBasisPerWafer  : Decimal
     -- | Whether the penalty payment has been confirmed.
     isSettled          : Bool
+    -- | Time when this agreement was last updated.
+    timestamp          : Time
   where
     -- Strictly bilateral: only manufacturer and the penalized party.
     -- No observers, no information leakage to any third party.
@@ -372,9 +443,11 @@ template PenaltyAgreement
     choice SettlePenalty : ContractId PenaltyAgreement
       controller manufacturer
       do
+        now <- getTime
         assertMsg "Penalty is already settled" (not isSettled)
         create this with
           isSettled = True
+          timestamp = now
 
     -- -----------------------------------------------------------------------
     -- Choice: DisputePenalty
@@ -390,6 +463,7 @@ template PenaltyAgreement
         disputeReason : Text
       controller penalizedParty
       do
+        now <- getTime
         assertMsg "Proposed rate must be between 0 and 1"
           (proposedRate > 0.0 && proposedRate <= 1.0)
         assertMsg "Cannot dispute an already settled penalty"
@@ -402,6 +476,7 @@ template PenaltyAgreement
           penaltyRate        = proposedRate
           penaltyAmount      = newPenaltyAmount
           cancellationReason = disputeReason
+          timestamp          = now
           isSettled          = False
 
 -- ============================================================================
@@ -416,11 +491,15 @@ template CapacityAssetLock
     assetId : Text
     technologyNode : TechnologyNode
     waferStartsPerMonth : Int
-    costBasisPerWafer : Decimal
+    buyer : Party
+    -- costBasisPerWafer is removed
+
     commitmentStartDate : Text
     commitmentEndDate : Text
+    timestamp : Time
   where
     signatory manufacturer, owner
+    observer buyer
 
     -- | The seller withdraws their offer, archiving the RFQ and restoring the asset.
     choice WithdrawOffer : ContractId CapacityAsset
@@ -428,6 +507,7 @@ template CapacityAssetLock
         rfqCid : ContractId TransferRFQ
       controller owner
       do
+        now <- getTime
         rfq <- fetch rfqCid
         assertMsg "RFQ assetId mismatch" (rfq.assetId == assetId)
         
@@ -438,6 +518,9 @@ template CapacityAssetLock
           seller = owner
           buyer = rfq.buyer
           assetId = assetId
+          waferStartsPerMonth = waferStartsPerMonth
+          askingPricePerWafer = rfq.askingPricePerWafer
+          timestamp = now
 
         create CapacityAsset with
           manufacturer = manufacturer
@@ -445,10 +528,10 @@ template CapacityAssetLock
           assetId = assetId
           technologyNode = technologyNode
           waferStartsPerMonth = waferStartsPerMonth
-          costBasisPerWafer = costBasisPerWafer
           commitmentStartDate = commitmentStartDate
           commitmentEndDate = commitmentEndDate
           status = Active
+          timestamp = now
 
     -- | The seller acknowledges the buyer's rejection, restoring the asset.
     choice AcknowledgeRejection : ContractId CapacityAsset
@@ -456,6 +539,7 @@ template CapacityAssetLock
         logCid : ContractId RejectedTransferLog
       controller owner
       do
+        now <- getTime
         log <- fetch logCid
         assertMsg "Log assetId mismatch" (log.assetId == assetId)
         
@@ -467,12 +551,8 @@ template CapacityAssetLock
           assetId = assetId
           technologyNode = technologyNode
           waferStartsPerMonth = waferStartsPerMonth
-          costBasisPerWafer = costBasisPerWafer
           commitmentStartDate = commitmentStartDate
           commitmentEndDate = commitmentEndDate
           status = Active
+          timestamp = now
 
-    -- | Clean up the lock if the RFQ was successfully accepted by the buyer.
-    choice CleanupLock : ()
-      controller owner
-      do return ()

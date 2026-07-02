@@ -51,7 +51,7 @@ import {
 } from '../validators';
 
 // Import the package ID from the codegen output
-import { SynCCap } from '@daml.js/synccap-v2-0.2.1';
+import { SynCCap } from '@daml.js/synccap-v2-0.3.0';
 
 // Alias the generated template types for cleaner usage
 type CapacityAssetType = SynCCap.CapacityAsset;
@@ -74,6 +74,7 @@ type PenaltyAgreementType = SynCCap.PenaltyAgreement;
  */
 const TEMPLATE_IDS = {
   CapacityAsset: '#synccap-v2:SynCCap:CapacityAsset',
+  CapacityFinancials: '#synccap-v2:SynCCap:CapacityFinancials',
   TransferRFQ: '#synccap-v2:SynCCap:TransferRFQ',
   CapacityAssetLock: '#synccap-v2:SynCCap:CapacityAssetLock',
   PenaltyAgreement: '#synccap-v2:SynCCap:PenaltyAgreement',
@@ -647,23 +648,43 @@ export class LedgerService {
       technologyNode: req.technologyNode,
     });
 
+    const timestamp = new Date().toISOString();
+    
+    const assetPayload = {
+      manufacturer: ctx.actingParty,
+      owner: ownerId,
+      assetId: req.assetId,
+      technologyNode: req.technologyNode,
+      waferStartsPerMonth: String(req.waferStartsPerMonth),
+      commitmentStartDate: req.commitmentStartDate,
+      commitmentEndDate: req.commitmentEndDate,
+      status: 'Active',
+      timestamp: timestamp,
+    };
+
+    const finPayload = {
+      creditor: ctx.actingParty,
+      debtor: ownerId,
+      assetId: req.assetId,
+      technologyNode: req.technologyNode,
+      waferStartsPerMonth: String(req.waferStartsPerMonth),
+      costBasisPerWafer: String(req.costBasisPerWafer),
+      timestamp: timestamp,
+    };
+
     const response = await this.submitAndWait(
       ctx,
       [
         {
           CreateCommand: {
             templateId: TEMPLATE_IDS.CapacityAsset,
-            createArguments: {
-              manufacturer: ctx.actingParty,
-              owner: ownerId,
-              assetId: req.assetId,
-              technologyNode: req.technologyNode,
-              waferStartsPerMonth: req.waferStartsPerMonth.toString(),
-              costBasisPerWafer: req.costBasisPerWafer,
-              commitmentStartDate: req.commitmentStartDate,
-              commitmentEndDate: req.commitmentEndDate,
-              status: 'Active',
-            },
+            createArguments: assetPayload,
+          },
+        },
+        {
+          CreateCommand: {
+            templateId: TEMPLATE_IDS.CapacityFinancials,
+            createArguments: finPayload,
           },
         },
       ],
@@ -765,6 +786,17 @@ export class LedgerService {
       rfqContractId: req.rfqContractId,
     });
 
+    // 1. Fetch the RFQ to get the assetId
+    const rfqs = await this.queryActiveContracts(ctx, TEMPLATE_IDS.TransferRFQ);
+    const rfqEvent = rfqs.find((e) => e.createdEvent.contractId === req.rfqContractId);
+    if (!rfqEvent) throw new Error('TransferRFQ not found or not visible.');
+    const assetId = (rfqEvent.createdEvent.createArgument as any).assetId;
+
+    // 2. Fetch the corresponding CapacityAssetLock
+    const locks = await this.queryActiveContracts(ctx, TEMPLATE_IDS.CapacityAssetLock);
+    const lockEvent = locks.find((e) => (e.createdEvent.createArgument as any).assetId === assetId);
+    if (!lockEvent) throw new Error('CapacityAssetLock not found for this assetId.');
+
     const response = await this.submitAndWait(ctx, [
       {
         ExerciseCommand: {
@@ -773,6 +805,7 @@ export class LedgerService {
           choice: 'AcceptTransfer',
           choiceArgument: {
             agreedPricePerWafer: req.agreedPricePerWafer,
+            lockCid: lockEvent.createdEvent.contractId,
           },
         },
       },
@@ -919,13 +952,34 @@ export class LedgerService {
       penaltyRate: req.penaltyRate,
     });
 
+    // 1. Fetch the CapacityAsset to verify it exists and get its assetId
+    const assets = await this.queryActiveContracts(ctx, TEMPLATE_IDS.CapacityAsset);
+    const asset = assets.find((a: any) => a.createdEvent.contractId === req.assetContractId);
+    if (!asset) {
+      throw new Error('CapacityAsset not found.');
+    }
+
+    const assetPayload = asset.createdEvent.createArgument;
+
+    // 2. Fetch the corresponding CapacityFinancials contract
+    const financials = await this.queryActiveContracts(ctx, TEMPLATE_IDS.CapacityFinancials);
+    const financialContract = financials.find(
+      (f: any) => f.createdEvent.createArgument.assetId === assetPayload.assetId && 
+                  f.createdEvent.createArgument.debtor === ctx.actingParty
+    );
+
+    if (!financialContract) {
+      throw new Error('CapacityFinancials not found for this asset.');
+    }
+
     const response = await this.submitAndWait(ctx, [
       {
         ExerciseCommand: {
-          templateId: TEMPLATE_IDS.CapacityAsset,
-          contractId: req.assetContractId,
+          templateId: TEMPLATE_IDS.CapacityFinancials,
+          contractId: financialContract.createdEvent.contractId,
           choice: 'InitiatePenalty',
           choiceArgument: {
+            assetCid: req.assetContractId,
             penaltyRate: req.penaltyRate,
             cancellationReason: req.cancellationReason,
           },
@@ -1003,15 +1057,83 @@ export class LedgerService {
   async queryAssetsByParty(ctx: PartyContext): Promise<AssetContract[]> {
     logger.debug('Querying CapacityAssets', { party: ctx.actingParty });
 
-    const events = await this.queryActiveContracts(
-      ctx,
-      TEMPLATE_IDS.CapacityAsset
-    );
+    const [activeAssets, lockedAssetsRaw, financials] = await Promise.all([
+      this.queryActiveContracts(ctx, TEMPLATE_IDS.CapacityAsset),
+      this.queryActiveContracts(ctx, TEMPLATE_IDS.CapacityAssetLock),
+      this.queryActiveContracts(ctx, TEMPLATE_IDS.CapacityFinancials)
+    ]);
 
-    return events.map((event) => ({
-      contractId: event.createdEvent.contractId,
-      payload: event.createdEvent.createArgument as unknown as CapacityAssetType,
-    }));
+    // The buyer is an observer on the lock, but they don't "own" it yet.
+    const lockedAssets = lockedAssetsRaw.filter(e => {
+      const payload = e.createdEvent.createArgument as any;
+      return payload.owner === ctx.actingParty || payload.manufacturer === ctx.actingParty;
+    });
+
+    const financialMap = new Map<string, any>();
+    for (const event of financials) {
+      const payload = event.createdEvent.createArgument as any;
+      // Prefer the financial contract where the user is the debtor (their own cost basis),
+      // fallback to where they are the creditor (for manufacturers).
+      if (payload.debtor === ctx.actingParty) {
+         financialMap.set(payload.assetId, payload);
+      } else if (!financialMap.has(payload.assetId) && payload.creditor === ctx.actingParty) {
+         financialMap.set(payload.assetId, payload);
+      }
+    }
+
+    const mappedActive = activeAssets.map((event) => {
+      const payload = event.createdEvent.createArgument as any;
+      const fin = financialMap.get(payload.assetId);
+      return {
+        contractId: event.createdEvent.contractId,
+        payload: {
+          ...payload,
+          costBasisPerWafer: fin ? fin.costBasisPerWafer : '0.0'
+        } as CapacityAssetType,
+      };
+    });
+
+    const mappedLocked = lockedAssets.map((event) => {
+      const payload = event.createdEvent.createArgument as any;
+      const fin = financialMap.get(payload.assetId);
+      return {
+        contractId: event.createdEvent.contractId,
+        payload: {
+          ...payload,
+          costBasisPerWafer: fin ? fin.costBasisPerWafer : '0.0',
+          status: 'Pending Transfer'
+        } as CapacityAssetType
+      };
+    });
+
+    // Identify sub-leases: financials where actingParty is creditor,
+    // but the asset is NO LONGER in their active or locked assets.
+    const ownedAssetIds = new Set([
+      ...activeAssets.map(e => (e.createdEvent.createArgument as any).assetId),
+      ...lockedAssets.map(e => (e.createdEvent.createArgument as any).assetId)
+    ]);
+
+    const subLeases = financials
+      .map(e => ({ contractId: e.createdEvent.contractId, payload: e.createdEvent.createArgument as any }))
+      .filter(f => f.payload.creditor === ctx.actingParty && !ownedAssetIds.has(f.payload.assetId))
+      .map(f => {
+        return {
+          contractId: f.contractId,
+          payload: {
+            manufacturer: 'Sub-Leased', // Mapped for UI
+            owner: f.payload.debtor,    // The party we leased to
+            assetId: f.payload.assetId,
+            technologyNode: f.payload.technologyNode,
+            waferStartsPerMonth: f.payload.waferStartsPerMonth,
+            costBasisPerWafer: f.payload.costBasisPerWafer,
+            commitmentStartDate: 'Unknown',
+            commitmentEndDate: 'Unknown',
+            status: 'Sub-Leased'
+          } as unknown as CapacityAssetType
+        };
+      });
+
+    return [...mappedActive, ...mappedLocked, ...subLeases];
   }
 
   /**

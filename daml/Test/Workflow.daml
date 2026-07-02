@@ -43,6 +43,7 @@ testSynCCapWorkflow = script do
   manufacturer   <- allocateParty "TSMC_Foundry"
   primaryBuyer   <- allocateParty "Apple_Inc"
   secondaryBuyer <- allocateParty "Startup_ChipCo"
+  now <- getTime
 
   -- =========================================================================
   -- STEP 2: Multi-Party Capacity Asset Issuance
@@ -58,10 +59,20 @@ testSynCCapWorkflow = script do
       assetId             = "LOT-TSMC-3NM-2025Q3-001"
       technologyNode      = N3nm
       waferStartsPerMonth = 500
-      costBasisPerWafer   = 18500.0              -- CONFIDENTIAL: $18,500/wafer
       commitmentStartDate = "2025-07-01"
       commitmentEndDate   = "2026-06-30"
       status              = Active
+      timestamp           = now
+
+  capacityFinancialsCid <- submit (actAs manufacturer <> actAs primaryBuyer) do
+    createCmd CapacityFinancials with
+      creditor            = manufacturer
+      debtor              = primaryBuyer
+      assetId             = "LOT-TSMC-3NM-2025Q3-001"
+      technologyNode      = N3nm
+      waferStartsPerMonth = 500
+      costBasisPerWafer   = 18500.0
+      timestamp           = now
 
   -- =========================================================================
   -- STEP 3: Primary Buyer Proposes Dark Pool Transfer
@@ -84,9 +95,10 @@ testSynCCapWorkflow = script do
   -- Canton Atomic Settlement: The TransferRFQ is archived AND the new
   -- CapacityAsset is created in a single indivisible transaction.
   -- There is no point in time where capacity exists in limbo.
-  newAssetCid <- submit secondaryBuyer do
+  (newAssetCid, newFinCid) <- submit secondaryBuyer do
     exerciseCmd transferRfqCid AcceptTransfer with
       agreedPricePerWafer = 21500.0              -- Negotiated down to $21,500
+      lockCid = lockCid
 
   -- =========================================================================
   -- STEP 5: Verify Privacy — Query Contracts by Party
@@ -99,12 +111,15 @@ testSynCCapWorkflow = script do
   -- Query the new asset from the secondary buyer's perspective.
   newAssets <- queryFilter @CapacityAsset secondaryBuyer
     (\a -> a.assetId == "LOT-TSMC-3NM-2025Q3-001")
-  -- Verify the secondary buyer's cost basis is the agreed transfer price.
   let [(_, newAsset)] = newAssets
-  assertMsg "Secondary buyer's cost basis should be the agreed transfer price"
-    (newAsset.costBasisPerWafer == 21500.0)
   assertMsg "Secondary buyer should be the new owner"
     (newAsset.owner == secondaryBuyer)
+
+  newFinancials <- queryFilter @CapacityFinancials secondaryBuyer
+    (\a -> a.assetId == "LOT-TSMC-3NM-2025Q3-001")
+  let [(_, newFin)] = newFinancials
+  assertMsg "Secondary buyer's cost basis should be the agreed transfer price"
+    (newFin.costBasisPerWafer == 21500.0)
 
   -- Verify that the PRIMARY BUYER's original asset is no longer active.
   -- (It was consumed by ProposeTransfer.)
@@ -124,16 +139,27 @@ testSynCCapWorkflow = script do
       assetId             = "LOT-TSMC-5NM-2025Q4-007"
       technologyNode      = N5nm
       waferStartsPerMonth = 200
-      costBasisPerWafer   = 12000.0              -- CONFIDENTIAL: $12,000/wafer
       commitmentStartDate = "2025-10-01"
       commitmentEndDate   = "2026-09-30"
       status              = Active
+      timestamp           = now
+
+  penaltyFinancialsCid <- submit (actAs manufacturer <> actAs primaryBuyer) do
+    createCmd CapacityFinancials with
+      creditor            = manufacturer
+      debtor              = primaryBuyer
+      assetId             = "LOT-TSMC-5NM-2025Q4-007"
+      technologyNode      = N5nm
+      waferStartsPerMonth = 200
+      costBasisPerWafer   = 12000.0
+      timestamp           = now
 
   -- Primary Buyer cancels this commitment (e.g., product line was discontinued).
   -- Penalty rate: 30% of total monthly commitment value.
   -- This is a BILATERAL contract — Startup_ChipCo has ZERO visibility.
   penaltyAgreementCid <- submit (actAs manufacturer <> actAs primaryBuyer) do
-    exerciseCmd penaltyAssetCid InitiatePenalty with
+    exerciseCmd penaltyFinancialsCid InitiatePenalty with
+      assetCid           = penaltyAssetCid
       penaltyRate        = 0.30
       cancellationReason = "Product line EOS — Raptor Lake successor canceled"
 
@@ -191,8 +217,8 @@ testSynCCapWorkflow = script do
   --   ✓ The settled penalty agreement
   allMfgAssets <- query @CapacityAsset manufacturer
   allMfgPenalties <- query @PenaltyAgreement manufacturer
-  assertMsg "Manufacturer should see 1 active capacity asset"
-    (length allMfgAssets == 1)
+  assertMsg "Manufacturer should see 2 active capacity assets"
+    (length allMfgAssets == 2)
   assertMsg "Manufacturer should see 1 penalty agreement (settled)"
     (length allMfgPenalties == 1)
 
@@ -217,6 +243,7 @@ testSynCCapRejectReclaimWorkflow = script do
   manufacturer   <- allocateParty "TSMC_Foundry"
   primaryBuyer   <- allocateParty "Apple_Inc"
   secondaryBuyer <- allocateParty "Startup_ChipCo"
+  now <- getTime
 
   capacityAssetCid <- submit (actAs manufacturer <> actAs primaryBuyer) do
     createCmd CapacityAsset with
@@ -225,10 +252,20 @@ testSynCCapRejectReclaimWorkflow = script do
       assetId             = "LOT-REJECT-TEST-001"
       technologyNode      = N3nm
       waferStartsPerMonth = 500
-      costBasisPerWafer   = 18500.0
       commitmentStartDate = "2025-07-01"
       commitmentEndDate   = "2026-06-30"
       status              = Active
+      timestamp           = now
+
+  capacityFinancialsCid <- submit (actAs manufacturer <> actAs primaryBuyer) do
+    createCmd CapacityFinancials with
+      creditor            = manufacturer
+      debtor              = primaryBuyer
+      assetId             = "LOT-REJECT-TEST-001"
+      technologyNode      = N3nm
+      waferStartsPerMonth = 500
+      costBasisPerWafer   = 18500.0
+      timestamp           = now
 
   -- Propose transfer
   (transferRfqCid, lockCid) <- submit (actAs manufacturer <> actAs primaryBuyer) do
@@ -270,6 +307,7 @@ testSynCCapWithdrawWorkflow = script do
   manufacturer   <- allocateParty "TSMC_Foundry"
   primaryBuyer   <- allocateParty "Apple_Inc"
   secondaryBuyer <- allocateParty "Startup_ChipCo"
+  now <- getTime
 
   capacityAssetCid <- submit (actAs manufacturer <> actAs primaryBuyer) do
     createCmd CapacityAsset with
@@ -278,10 +316,20 @@ testSynCCapWithdrawWorkflow = script do
       assetId             = "LOT-WITHDRAW-TEST-001"
       technologyNode      = N5nm
       waferStartsPerMonth = 200
-      costBasisPerWafer   = 12000.0
       commitmentStartDate = "2025-07-01"
       commitmentEndDate   = "2026-06-30"
       status              = Active
+      timestamp           = now
+
+  capacityFinancialsCid <- submit (actAs manufacturer <> actAs primaryBuyer) do
+    createCmd CapacityFinancials with
+      creditor            = manufacturer
+      debtor              = primaryBuyer
+      assetId             = "LOT-WITHDRAW-TEST-001"
+      technologyNode      = N5nm
+      waferStartsPerMonth = 200
+      costBasisPerWafer   = 12000.0
+      timestamp           = now
 
   -- Propose transfer
   (transferRfqCid, lockCid) <- submit (actAs manufacturer <> actAs primaryBuyer) do
