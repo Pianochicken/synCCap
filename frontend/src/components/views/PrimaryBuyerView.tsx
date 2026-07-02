@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { ApiService } from '../../api/client';
-import { PackageOpen, Send, FileWarning, TrendingUp, Lock } from 'lucide-react';
+import { PackageOpen, Send, FileWarning, TrendingUp, Lock, FileText } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { ConfirmModal } from '../ConfirmModal';
 
 interface AssetPayload {
   assetId: string;
   technologyNode: string;
+  waferStartsPerMonth: string;
   costBasisPerWafer: string;
 }
 
@@ -20,6 +21,7 @@ interface RFQPayload {
   seller: string;
   buyer: string;
   technologyNode: string;
+  waferStartsPerMonth: string;
   askingPricePerWafer: string;
 }
 
@@ -51,6 +53,7 @@ export const PrimaryBuyerView: React.FC<PrimaryBuyerViewProps> = ({
 
   const [penaltyModalOpen, setPenaltyModalOpen] = useState(false);
   const [selectedPenaltyAssetId, setSelectedPenaltyAssetId] = useState<string | null>(null);
+  const [selectedPenaltyAmount, setSelectedPenaltyAmount] = useState<number>(0);
 
   const handleWithdrawTransfer = (rfqContractId: string) => {
     setSelectedWithdrawRfqId(rfqContractId);
@@ -114,7 +117,8 @@ export const PrimaryBuyerView: React.FC<PrimaryBuyerViewProps> = ({
     }
   };
 
-  const handleInitiatePenalty = (assetContractId: string) => {
+  const handleInitiatePenalty = (assetContractId: string, penaltyAmount: number) => {
+    setSelectedPenaltyAmount(penaltyAmount);
     setSelectedPenaltyAssetId(assetContractId);
     setPenaltyModalOpen(true);
   };
@@ -158,7 +162,7 @@ export const PrimaryBuyerView: React.FC<PrimaryBuyerViewProps> = ({
       <ConfirmModal
         isOpen={penaltyModalOpen}
         title="Initiate Penalty"
-        message="Are you sure you want to cancel this capacity commitment and initiate a penalty agreement?"
+        message={`Are you sure you want to cancel this capacity commitment? A 25% penalty fee of $${selectedPenaltyAmount.toLocaleString()} will be charged to compensate the foundry. This action cannot be undone.`}
         confirmText="Confirm Penalty"
         icon="alert"
         isLoading={loading}
@@ -212,17 +216,59 @@ export const PrimaryBuyerView: React.FC<PrimaryBuyerViewProps> = ({
                       <h4 className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
                         {asset.payload.assetId}
                       </h4>
-                      <p className="text-xs font-semibold mt-0.5" style={{ color: 'var(--primary)' }}>
-                        {asset.payload.technologyNode}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
-                        ${parseFloat(asset.payload.costBasisPerWafer).toLocaleString()}
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="badge badge-green">Active</span>
+                        <span className="text-xs font-semibold" style={{ color: 'var(--primary)' }}>
+                          {asset.payload.technologyNode}
+                        </span>
                       </div>
-                      <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                        Original Cost Basis
-                      </p>
+                    </div>
+                  </div>
+
+                  <div className="p-4 space-y-4 pb-0">
+                    <div className="bg-[var(--bg-surface)] p-3 rounded-lg border border-[var(--border-color)] space-y-3">
+                      <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                        <FileText className="w-4 h-4" style={{ color: 'var(--primary)' }} />
+                        Contract Details
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <span className="block text-xs uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>
+                            Monthly Wafers
+                          </span>
+                          <span className="font-medium" style={{ color: 'var(--text-secondary)' }}>
+                            {parseInt(asset.payload.waferStartsPerMonth).toLocaleString()}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="block text-xs uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>
+                            Unit Cost Basis
+                          </span>
+                          <span className="font-medium" style={{ color: 'var(--text-secondary)' }}>
+                            ${parseFloat(asset.payload.costBasisPerWafer).toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="pt-2 border-t border-[var(--border-color)]">
+                        <span className="block text-xs uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>
+                          Total Value
+                        </span>
+                        <span className="font-bold text-lg text-emerald-500">
+                          ${(parseFloat(asset.payload.costBasisPerWafer) * parseInt(asset.payload.waferStartsPerMonth)).toLocaleString()}
+                        </span>
+                      </div>
+                      <button 
+                        onClick={() => {
+                          const totalValue = parseFloat(asset.payload.costBasisPerWafer) * parseInt(asset.payload.waferStartsPerMonth);
+                          const penaltyAmount = totalValue * 0.25;
+                          handleInitiatePenalty(asset.contractId, penaltyAmount);
+                        }}
+                        disabled={loading} 
+                        className="btn-danger w-full text-sm mt-1"
+                      >
+                        <FileWarning className="w-4 h-4" />
+                        Cancel Capacity (25% Penalty)
+                      </button>
                     </div>
                   </div>
 
@@ -278,16 +324,6 @@ export const PrimaryBuyerView: React.FC<PrimaryBuyerViewProps> = ({
                         see your original cost basis.
                       </p>
                     </div>
-
-                    {/* Cancel/Penalty */}
-                    <button
-                      onClick={() => handleInitiatePenalty(asset.contractId)}
-                      disabled={loading}
-                      className="btn-danger w-full text-sm"
-                    >
-                      <FileWarning className="w-4 h-4" />
-                      Cancel Capacity (25% Penalty)
-                    </button>
                   </div>
                 </div>
               );
@@ -315,7 +351,7 @@ export const PrimaryBuyerView: React.FC<PrimaryBuyerViewProps> = ({
                 style={{ border: '1px solid var(--border-color)', background: 'var(--bg-surface-2)' }}
               >
                 <div
-                  className="px-4 py-3 flex justify-between items-center"
+                  className="px-4 py-3 flex justify-between items-start"
                   style={{
                     borderBottom: '1px solid var(--border-color)',
                     background: 'var(--bg-surface)',
@@ -334,9 +370,6 @@ export const PrimaryBuyerView: React.FC<PrimaryBuyerViewProps> = ({
                       <div className="font-bold text-sm text-yellow-500">
                         Pending Accept
                       </div>
-                      <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                        Asking: ${parseFloat(rfq.payload.askingPricePerWafer).toLocaleString()}
-                      </p>
                     </div>
                     <button 
                       onClick={() => handleWithdrawTransfer(rfq.contractId)}
@@ -345,6 +378,26 @@ export const PrimaryBuyerView: React.FC<PrimaryBuyerViewProps> = ({
                     >
                       Cancel Transfer
                     </button>
+                  </div>
+                </div>
+                <div className="p-4 space-y-4">
+                  <div className="grid grid-cols-2 gap-4 bg-[var(--bg-surface)] p-3 rounded-lg border border-[var(--border-color)]">
+                    <div>
+                      <span className="block text-xs uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>
+                        Monthly Wafers
+                      </span>
+                      <span className="font-medium" style={{ color: 'var(--text-secondary)' }}>
+                        {parseInt(rfq.payload.waferStartsPerMonth).toLocaleString()}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="block text-xs uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>
+                        Total Transfer Value
+                      </span>
+                      <span className="font-bold text-sm text-emerald-500">
+                        ${(parseFloat(rfq.payload.askingPricePerWafer) * parseInt(rfq.payload.waferStartsPerMonth)).toLocaleString()}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>

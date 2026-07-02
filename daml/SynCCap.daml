@@ -177,6 +177,8 @@ template CapacityAsset
           penaltyRate        = penaltyRate
           penaltyAmount      = penaltyAmount
           cancellationReason = cancellationReason
+          waferStartsPerMonth = waferStartsPerMonth
+          costBasisPerWafer  = costBasisPerWafer
           isSettled          = False
 
 
@@ -348,6 +350,10 @@ template PenaltyAgreement
     penaltyAmount      : Decimal
     -- | Human-readable reason for the cancellation.
     cancellationReason : Text
+    -- | The original monthly wafer allocation.
+    waferStartsPerMonth: Int
+    -- | The original cost basis per wafer.
+    costBasisPerWafer  : Decimal
     -- | Whether the penalty payment has been confirmed.
     isSettled          : Bool
   where

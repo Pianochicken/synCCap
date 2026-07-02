@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { ApiService } from '../../api/client';
-import { Cpu, DollarSign, Activity, FileWarning, CheckCircle } from 'lucide-react';
+import { Cpu, Activity, FileWarning, CheckCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 interface AssetPayload {
   assetId: string;
   technologyNode: string;
   owner: string;
+  waferStartsPerMonth: string;
   costBasisPerWafer: string;
   status: string;
 }
@@ -21,6 +22,8 @@ interface PenaltyPayload {
   penalizedParty: string;
   assetId: string;
   penaltyRate: string;
+  waferStartsPerMonth: string;
+  costBasisPerWafer: string;
 }
 
 interface Penalty {
@@ -127,7 +130,7 @@ export const ManufacturerView: React.FC<ManufacturerViewProps> = ({ assets, pena
                 </select>
               </div>
               <div>
-                <label className="label">Wafer Starts / Month</label>
+                <label className="label">Monthly Wafers</label>
                 <input
                   type="number"
                   className="input-field"
@@ -158,6 +161,13 @@ export const ManufacturerView: React.FC<ManufacturerViewProps> = ({ assets, pena
               <p className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>
                 This cost basis is private and will be severed upon secondary transfer.
               </p>
+            </div>
+
+            <div className="p-3 bg-[var(--bg-surface-2)] rounded-lg border border-[var(--border-color)] flex justify-between items-center mb-6">
+              <span className="text-sm font-semibold text-[var(--text-secondary)]">Total Contract Value</span>
+              <span className="text-lg font-bold text-emerald-500">
+                ${(formData.waferStartsPerMonth * parseFloat(formData.costBasisPerWafer || '0')).toLocaleString()}
+              </span>
             </div>
 
             <button type="submit" disabled={loading} className="btn-primary w-full">
@@ -226,9 +236,19 @@ export const ManufacturerView: React.FC<ManufacturerViewProps> = ({ assets, pena
                     >
                       Owner: {asset.payload.owner.split('::')[0]}
                     </div>
-                    <div className="flex items-center gap-1 font-semibold" style={{ color: 'var(--text-primary)' }}>
-                      <DollarSign className="w-3.5 h-3.5" style={{ color: 'var(--text-muted)' }} />
-                      {parseFloat(asset.payload.costBasisPerWafer).toLocaleString()} / wafer
+                    <div className="flex justify-between mt-2 pt-2 border-t border-[var(--border-color)]">
+                      <div>
+                        <div style={{ color: 'var(--text-muted)' }}>Monthly Wafers</div>
+                        <div className="font-medium" style={{ color: 'var(--text-secondary)' }}>
+                          {parseInt(asset.payload.waferStartsPerMonth).toLocaleString()}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div style={{ color: 'var(--text-muted)' }}>Total Value</div>
+                        <div className="font-bold text-emerald-500">
+                          ${(parseFloat(asset.payload.costBasisPerWafer) * parseInt(asset.payload.waferStartsPerMonth)).toLocaleString()}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -275,20 +295,27 @@ export const ManufacturerView: React.FC<ManufacturerViewProps> = ({ assets, pena
             {penalties.map((p) => (
               <div
                 key={p.contractId}
-                className="p-4 rounded-xl"
+                className="rounded-xl overflow-hidden"
                 style={{
                   background: 'var(--bg-surface-2)',
-                  border: '1px solid rgba(245,158,11,0.2)',
+                  border: '1px solid rgba(245,158,11,0.3)',
                 }}
               >
-                <div className="flex justify-between items-start mb-3">
+                <div
+                  className="px-4 py-3 flex justify-between items-center"
+                  style={{
+                    borderBottom: '1px solid rgba(245,158,11,0.2)',
+                    background: 'var(--bg-surface)',
+                  }}
+                >
                   <div>
-                    <div className="font-bold text-amber-500 flex items-center gap-1">
-                      <DollarSign className="w-4 h-4" />
-                      {parseFloat(p.payload.penaltyAmount).toLocaleString()} USD
-                    </div>
-                    <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                      Party: {p.payload.penalizedParty.split('::')[0]}
+                    <h4 className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
+                      {p.payload.assetId}
+                    </h4>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                        Pending Settlement
+                      </span>
                     </div>
                   </div>
                   <button
@@ -300,14 +327,49 @@ export const ManufacturerView: React.FC<ManufacturerViewProps> = ({ assets, pena
                     Settle
                   </button>
                 </div>
-                <div
-                  className="text-xs pt-2"
-                  style={{
-                    color: 'var(--text-muted)',
-                    borderTop: '1px solid var(--border-color)',
-                  }}
-                >
-                  Asset: {p.payload.assetId} · {parseFloat(p.payload.penaltyRate) * 100}% penalty rate
+                <div className="p-4 space-y-4">
+                  <div className="grid grid-cols-2 gap-4 bg-[var(--bg-surface)] p-3 rounded-lg border border-[var(--border-color)]">
+                    <div>
+                      <span className="block text-xs uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>
+                        Monthly Wafers
+                      </span>
+                      <span className="font-medium" style={{ color: 'var(--text-secondary)' }}>
+                        {parseInt(p.payload.waferStartsPerMonth).toLocaleString()}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="block text-xs uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>
+                        Unit Cost Basis
+                      </span>
+                      <span className="font-medium" style={{ color: 'var(--text-secondary)' }}>
+                        ${parseFloat(p.payload.costBasisPerWafer).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="pt-2 border-t border-[var(--border-color)]">
+                      <span className="block text-xs uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>
+                        Penalized Party
+                      </span>
+                      <span className="font-medium" style={{ color: 'var(--text-secondary)' }}>
+                        {p.payload.penalizedParty.split('::')[0]}
+                      </span>
+                    </div>
+                    <div className="pt-2 border-t border-[var(--border-color)]">
+                      <span className="block text-xs uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>
+                        Penalty Rate
+                      </span>
+                      <span className="font-medium" style={{ color: 'var(--text-secondary)' }}>
+                        {parseFloat(p.payload.penaltyRate) * 100}%
+                      </span>
+                    </div>
+                    <div className="col-span-2 pt-2 border-t border-[var(--border-color)]">
+                      <span className="block text-xs uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>
+                        Penalty Amount
+                      </span>
+                      <span className="font-bold text-lg text-amber-500">
+                        ${parseFloat(p.payload.penaltyAmount).toLocaleString()} USD
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}

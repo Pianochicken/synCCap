@@ -51,7 +51,7 @@ import {
 } from '../validators';
 
 // Import the package ID from the codegen output
-import { SynCCap } from '@daml.js/synccap-0.2.0';
+import { SynCCap } from '@daml.js/synccap-v2-0.2.1';
 
 // Alias the generated template types for cleaner usage
 type CapacityAssetType = SynCCap.CapacityAsset;
