@@ -124,6 +124,7 @@ export const ApiService = {
   async initiatePenalty(payload: {
     assetContractId: string;
     penaltyRate: string;
+    cancellationReason: string;
   }): Promise<{ penaltyContractId: string }> {
     const res = await client.post('/api/v1/penalties/initiate', payload);
     return res.data;

@@ -123,7 +123,11 @@ export const PrimaryBuyerView: React.FC<PrimaryBuyerViewProps> = ({
     if (!selectedPenaltyAssetId) return;
     try {
       setLoading(true);
-      await ApiService.initiatePenalty({ assetContractId: selectedPenaltyAssetId, penaltyRate: '0.25' });
+      await ApiService.initiatePenalty({ 
+        assetContractId: selectedPenaltyAssetId, 
+        penaltyRate: '0.25',
+        cancellationReason: 'Business strategy pivot requires capacity cancellation.'
+      });
       toast.success('Penalty Agreement Initiated (Private)');
       setPenaltyModalOpen(false);
       onRefresh();
