@@ -51,7 +51,7 @@ import {
 } from '../validators';
 
 // Import the package ID from the codegen output
-import { SynCCap } from '@daml.js/synccap-v2-0.3.0';
+import { SynCCap } from '@daml.js/synccap-v3-0.1.0';
 
 // Alias the generated template types for cleaner usage
 type CapacityAssetType = SynCCap.CapacityAsset;
@@ -73,13 +73,13 @@ type PenaltyAgreementType = SynCCap.PenaltyAgreement;
  * package upgrades and is the recommended format for application code.
  */
 const TEMPLATE_IDS = {
-  CapacityAsset: '#synccap-v2:SynCCap:CapacityAsset',
-  CapacityFinancials: '#synccap-v2:SynCCap:CapacityFinancials',
-  TransferRFQ: '#synccap-v2:SynCCap:TransferRFQ',
-  CapacityAssetLock: '#synccap-v2:SynCCap:CapacityAssetLock',
-  PenaltyAgreement: '#synccap-v2:SynCCap:PenaltyAgreement',
-  RejectedTransferLog: '#synccap-v2:SynCCap:RejectedTransferLog',
-  WithdrawnTransferLog: '#synccap-v2:SynCCap:WithdrawnTransferLog',
+  CapacityAsset: '#synccap-v3:SynCCap:CapacityAsset',
+  CapacityFinancials: '#synccap-v3:SynCCap:CapacityFinancials',
+  TransferRFQ: '#synccap-v3:SynCCap:TransferRFQ',
+  CapacityAssetLock: '#synccap-v3:SynCCap:CapacityAssetLock',
+  PenaltyAgreement: '#synccap-v3:SynCCap:PenaltyAgreement',
+  RejectedTransferLog: '#synccap-v3:SynCCap:RejectedTransferLog',
+  WithdrawnTransferLog: '#synccap-v3:SynCCap:WithdrawnTransferLog',
 } as const;
 
 // ---------------------------------------------------------------------------

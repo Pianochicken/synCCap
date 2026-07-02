@@ -40,7 +40,7 @@ Run the Daml sandbox to simulate the Canton Network and expose the Ledger API on
 ```bash
 # In Terminal 1 (Root directory)
 dpm build
-dpm sandbox --json-api-port 7575 --dar .daml/dist/synccap-v2-0.3.0.dar
+dpm sandbox --json-api-port 7575 --dar .daml/dist/synccap-v3-0.1.0.dar
 ```
 
 ### Step 2: Start the Backend REST API
