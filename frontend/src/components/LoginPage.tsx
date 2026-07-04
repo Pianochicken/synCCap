@@ -15,6 +15,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Zap, ArrowLeft, ShieldCheck } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
+import { NetworkSelector } from './NetworkSelector';
 import { ApiService } from '../api/client';
 import type { AuthSession, CompanyConfig, PartyRole } from '../types/AuthSession';
 
@@ -132,7 +133,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
       {/* Navbar */}
       <nav
-        className="relative z-10 flex items-center justify-between px-6 md:px-12 py-5 border-b"
+        className="relative z-10 flex items-center justify-between px-6 md:px-12 h-20 border-b"
         style={{ borderColor: 'var(--border-color)' }}
       >
         <Link to="/" className="flex items-center gap-3 group">
@@ -148,7 +149,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
         <div className="flex items-center gap-3">
           <span
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border"
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border"
             style={{
               background: 'var(--primary-glow)',
               borderColor: 'var(--primary)',
@@ -158,6 +159,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
             <Zap className="w-3 h-3" />
             Canton Network
           </span>
+          <NetworkSelector />
           <ThemeToggle />
         </div>
       </nav>

@@ -1,5 +1,8 @@
 import React from 'react';
-import { LogOut } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { LogOut, Server, Globe, Zap } from 'lucide-react';
+import { useNetwork } from '../context/NetworkContext';
+import { ThemeToggle } from './ThemeToggle';
 import { ManufacturerView } from './views/ManufacturerView';
 import { PrimaryBuyerView } from './views/PrimaryBuyerView';
 import { SecondaryBuyerView } from './views/SecondaryBuyerView';
@@ -20,7 +23,7 @@ const ROLE_COLORS = {
 
 const ROLE_ICONS = {
   Manufacturer: '🏭',
-  PrimaryBuyer: '🍎',
+  PrimaryBuyer: '🏢',
   SecondaryBuyer: '📡',
 };
 
@@ -31,10 +34,11 @@ interface DashboardProps {
 
 export const Dashboard: React.FC<DashboardProps> = ({ session, onLogout }) => {
   const roleColor = ROLE_COLORS[session.role];
+  const { network } = useNetwork();
 
   return (
     <div
-      className="min-h-screen relative overflow-hidden font-sans pt-16" // added pt-16 to account for the fixed nav bar
+      className="min-h-screen relative overflow-hidden font-sans"
       style={{ background: 'var(--bg-page)' }}
     >
       {/* Background decoration */}
@@ -48,29 +52,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ session, onLogout }) => {
         style={{ background: 'radial-gradient(circle, #a78bfa, transparent 70%)' }}
       />
 
-      <div className="relative max-w-6xl mx-auto px-4 py-8">
-
-        {/* Header */}
-        <header
-          className="flex items-center justify-between mb-10 pb-5 border-b"
-          style={{ borderColor: 'var(--border-color)' }}
-        >
-          {/* Logo */}
-          <div className="flex items-center gap-3">
-            <img 
-              src="/logo.png" 
-              alt="synCCap Logo" 
-              className="w-10 h-10 object-contain drop-shadow-[0_0_12px_rgba(79,141,255,0.5)] transition-all duration-300 hover:scale-105 hover:drop-shadow-[0_0_16px_rgba(79,141,255,0.7)]" 
-            />
-            <div>
-              <h1 className="text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-500">
-                synCCap
-              </h1>
-              <div className="text-[0.65rem] uppercase tracking-widest font-semibold" style={{ color: 'var(--text-secondary)' }}>
-                Carbon Credit Capacity
-              </div>
-            </div>
-          </div>
+      <nav
+        className="relative z-10 flex items-center justify-between px-6 md:px-12 h-20 border-b"
+        style={{ borderColor: 'var(--border-color)' }}
+      >
+        <Link to="/" className="flex items-center gap-3 group">
+          <img 
+            src="/logo.png" 
+            alt="synCCap Logo" 
+            className="w-10 h-10 object-contain drop-shadow-[0_0_12px_rgba(79,141,255,0.5)] transition-all duration-300 group-hover:scale-105 group-hover:drop-shadow-[0_0_16px_rgba(79,141,255,0.7)]" 
+          />
+          <span className="text-lg font-black tracking-tight" style={{ color: 'var(--text-primary)' }}>
+            syn<span className="gradient-text">CCap</span>
+          </span>
+        </Link>
 
           {/* Account badge + controls */}
           <div className="flex items-center gap-3">
@@ -98,9 +93,39 @@ export const Dashboard: React.FC<DashboardProps> = ({ session, onLogout }) => {
               <LogOut className="w-4 h-4" />
               Log Out
             </button>
-          </div>
-        </header>
 
+            {/* Canton Network Badge */}
+            <span
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border"
+              style={{
+                background: 'var(--primary-glow)',
+                borderColor: 'var(--primary)',
+                color: 'var(--primary)',
+              }}
+            >
+              <Zap className="w-3 h-3" />
+              Canton Network
+            </span>
+
+            {/* Network Badge */}
+            <div
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-sm font-medium ${
+                network === 'devnet'
+                  ? 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800'
+                  : 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800'
+              }`}
+              title="Current Network"
+            >
+              {network === 'local' ? <Server className="w-4 h-4" /> : <Globe className="w-4 h-4" />}
+              <span className="hidden sm:inline-block capitalize">{network}</span>
+            </div>
+
+            <ThemeToggle />
+
+          </div>
+        </nav>
+
+      <div className="relative max-w-6xl mx-auto px-4 py-8">
         {/* Dashboard Content */}
         <div className="animate-in">
           {session.role === 'Manufacturer' && (

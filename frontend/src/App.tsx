@@ -21,8 +21,6 @@ import { Toaster } from 'react-hot-toast';
 import type { AuthSession } from './types/AuthSession';
 import { NetworkProvider } from './context/NetworkContext';
 import { LedgerProvider } from './components/LedgerProvider';
-import { NetworkSelector } from './components/NetworkSelector';
-import { ThemeToggle } from './components/ThemeToggle';
 
 const SESSION_KEY = 'synccap_session';
 
@@ -54,11 +52,6 @@ function App() {
     <NetworkProvider>
       <Toaster position="bottom-right" toastOptions={{ className: 'text-sm shadow-xl' }} />
       
-      {/* Global Navigation Bar / Controls */}
-      <div className="fixed top-4 right-4 z-50 flex items-center gap-3">
-        <NetworkSelector />
-        <ThemeToggle />
-      </div>
 
       <Routes>
         <Route path="/" element={<LandingPage />} />

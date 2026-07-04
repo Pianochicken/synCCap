@@ -165,7 +165,7 @@ export const LandingPage: React.FC = () => {
       />
 
       {/* ─────────────── NAVBAR ─────────────── */}
-      <nav className="relative z-10 flex items-center justify-between px-6 md:px-12 py-5 border-b" style={{ borderColor: 'var(--border-color)' }}>
+      <nav className="relative z-10 flex items-center justify-between px-6 md:px-12 h-20 border-b" style={{ borderColor: 'var(--border-color)' }}>
         <div className="flex items-center gap-3">
           <img 
             src="/logo.png" 
@@ -178,11 +178,8 @@ export const LandingPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <GradientBadge>
-            <Zap className="w-3 h-3" />
-            Canton Network
-          </GradientBadge>
           <ThemeToggle />
+
           <button
             onClick={() => navigate('/login')}
             className="btn-primary hidden sm:inline-flex"
