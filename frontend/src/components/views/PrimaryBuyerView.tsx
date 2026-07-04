@@ -57,6 +57,8 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
   const sortedRejectedLogs = [...rejectedLogs].reverse();
   const sortedWithdrawnLogs = [...withdrawnLogs].reverse();
 
+  const [activeHistoryTab, setActiveHistoryTab] = useState<'sold' | 'rejected' | 'withdrawn'>('sold');
+
   const handleWithdrawTransfer = (rfqContractId: string) => {
     setSelectedWithdrawRfqId(rfqContractId);
     setWithdrawModalOpen(true);
@@ -407,7 +409,7 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
               No active transfer RFQs.
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
               {[...transfers].reverse().map((rfq) => {
                 const askPrice = parseFloat(rfq.payload.askingPricePerWafer ?? '0');
                 const wafers = parseInt(rfq.payload.waferStartsPerMonth ?? '0');
@@ -486,18 +488,50 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
             Transfer History
           </h3>
 
+          {/* Tabs */}
+          <div className="flex gap-2 mb-4 border-b border-[var(--border-color)] pb-2">
+            <button
+              onClick={() => setActiveHistoryTab('sold')}
+              className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                activeHistoryTab === 'sold'
+                  ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white'
+                  : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+            >
+              Sold ({subLeasedAssets.length})
+            </button>
+            <button
+              onClick={() => setActiveHistoryTab('rejected')}
+              className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                activeHistoryTab === 'rejected'
+                  ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
+                  : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+            >
+              Rejected ({sortedRejectedLogs.length})
+            </button>
+            <button
+              onClick={() => setActiveHistoryTab('withdrawn')}
+              className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                activeHistoryTab === 'withdrawn'
+                  ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white'
+                  : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+            >
+              Withdrawn ({sortedWithdrawnLogs.length})
+            </button>
+          </div>
+
           <div className="space-y-4">
             {/* Sub-Leased */}
+            {activeHistoryTab === 'sold' && (
             <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider mb-2 text-gray-500 dark:text-gray-400 px-1">
-                Sub-Leased Assets (Sold)
-              </h4>
               {loadingAssets ? (
                 <div className="text-center text-sm py-2 text-gray-500">Loading...</div>
               ) : subLeasedAssets.length === 0 ? (
                 <div className="text-xs text-gray-400 dark:text-gray-500 px-1 italic">No assets sold yet.</div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                   {subLeasedAssets.map((asset) => {
                     const fin = financials.find((f) => f.payload.assetId === asset.payload.assetId);
                     const unitPrice = fin ? parseFloat(fin.payload.costBasisPerWafer) : 0;
@@ -557,18 +591,17 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
                 </div>
               )}
             </div>
+            )}
 
             {/* Rejected */}
+            {activeHistoryTab === 'rejected' && (
             <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider mb-2 text-gray-500 dark:text-gray-400 px-1">
-                Rejected Offers
-              </h4>
               {loadingRejected ? (
                 <div className="text-center text-sm py-2 text-gray-500">Loading...</div>
               ) : rejectedLogs.length === 0 ? (
                 <div className="text-xs text-gray-400 dark:text-gray-500 px-1 italic">No rejected offers.</div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                   {sortedRejectedLogs.map((log) => {
                     const ts = log.payload.timestamp
                       ? new Date(log.payload.timestamp).toLocaleString(undefined, {
@@ -638,18 +671,17 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
                 </div>
               )}
             </div>
+            )}
 
             {/* Withdrawn */}
+            {activeHistoryTab === 'withdrawn' && (
             <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider mb-2 text-gray-500 dark:text-gray-400 px-1">
-                Withdrawn Offers
-              </h4>
               {loadingWithdrawn ? (
                 <div className="text-center text-sm py-2 text-gray-500">Loading...</div>
               ) : withdrawnLogs.length === 0 ? (
                 <div className="text-xs text-gray-400 dark:text-gray-500 px-1 italic">No withdrawn offers.</div>
               ) : (
-                <div className="space-y-2 opacity-70">
+                <div className="space-y-2 opacity-70 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                   {sortedWithdrawnLogs.map((log) => {
                     const ts = log.payload.timestamp
                       ? new Date(log.payload.timestamp).toLocaleString(undefined, {
@@ -707,6 +739,7 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
                 </div>
               )}
             </div>
+            )}
           </div>
         </div>
       </div>

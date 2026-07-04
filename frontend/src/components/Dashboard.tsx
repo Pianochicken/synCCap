@@ -78,12 +78,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ session, onLogout }) => {
               }}
             >
               <span className="text-base">{ROLE_ICONS[session.role]}</span>
-              <div className="leading-tight">
+              <div className="leading-tight flex items-center h-full">
                 <div className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
                   {session.displayName}
-                </div>
-                <div className="text-xs" style={{ color: roleColor }}>
-                  {ROLE_LABELS[session.role]}
                 </div>
               </div>
             </div>
