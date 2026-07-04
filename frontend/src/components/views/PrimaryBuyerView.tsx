@@ -201,7 +201,7 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
             You don't own any active capacity assets.
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-1 gap-4 max-h-[600px] overflow-auto pr-2 custom-scrollbar">
             {portfolioAssets.map((asset) => {
               const fin = financials.find((f) => f.payload.assetId === asset.payload.assetId);
               const unitPrice = fin ? parseFloat(fin.payload.costBasisPerWafer) : 0;

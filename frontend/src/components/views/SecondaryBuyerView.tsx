@@ -99,7 +99,7 @@ export const SecondaryBuyerView: React.FC = () => {
             No capacity transfer offers available.
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-4 max-h-[600px] overflow-auto pr-2 custom-scrollbar">
             {[...transfers].reverse().map((rfq) => {
               const askPrice = parseFloat(rfq.payload.askingPricePerWafer ?? '0');
               const wafers = parseInt(rfq.payload.waferStartsPerMonth ?? '0');
