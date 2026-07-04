@@ -19,6 +19,10 @@ import { LoginPage } from './components/LoginPage';
 import { Dashboard } from './components/Dashboard';
 import { Toaster } from 'react-hot-toast';
 import type { AuthSession } from './types/AuthSession';
+import { NetworkProvider } from './context/NetworkContext';
+import { LedgerProvider } from './components/LedgerProvider';
+import { NetworkSelector } from './components/NetworkSelector';
+import { ThemeToggle } from './components/ThemeToggle';
 
 const SESSION_KEY = 'synccap_session';
 
@@ -47,8 +51,15 @@ function App() {
   };
 
   return (
-    <>
+    <NetworkProvider>
       <Toaster position="bottom-right" toastOptions={{ className: 'text-sm shadow-xl' }} />
+      
+      {/* Global Navigation Bar / Controls */}
+      <div className="fixed top-4 right-4 z-50 flex items-center gap-3">
+        <NetworkSelector />
+        <ThemeToggle />
+      </div>
+
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
@@ -56,7 +67,9 @@ function App() {
           path="/dashboard"
           element={
             session ? (
-              <Dashboard session={session} onLogout={handleLogout} />
+              <LedgerProvider partyId={session.partyId}>
+                <Dashboard session={session} onLogout={handleLogout} />
+              </LedgerProvider>
             ) : (
               <Navigate to="/login" replace />
             )
@@ -64,7 +77,7 @@ function App() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </>
+    </NetworkProvider>
   );
 }
 

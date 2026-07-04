@@ -284,6 +284,10 @@ export class LedgerService {
    * @returns The fully-qualified party ID (e.g., `TSMC::1220abc...`).
    */
   async allocateParty(partyHint: string): Promise<string> {
+    if (partyHint.includes('::')) {
+      return partyHint;
+    }
+
     const url = `${this.baseUrl}/v2/parties`;
 
     logger.info('Allocating party on Canton sandbox', { partyHint });
@@ -294,42 +298,81 @@ export class LedgerService {
       body: JSON.stringify({ partyIdHint: partyHint, identityProviderId: '' }),
     });
 
+    let partyId = '';
+
     if (response.ok) {
       const data = (await response.json()) as {
         partyDetails: { party: string };
       };
-      const partyId = data.partyDetails.party;
+      partyId = data.partyDetails.party;
       logger.info('Party allocated', { partyHint, partyId });
-      return partyId;
-    }
-
-    const errorBody = await response.text();
-
-    // Canton returns 400 INVALID_ARGUMENT if the party already exists
-    if (response.status === 400 && errorBody.includes('already exists')) {
-      logger.debug('Party already exists, fetching ID', { partyHint });
-      const listResponse = await fetch(`${this.baseUrl}/v2/parties`, {
-        method: 'GET',
-      });
-      if (listResponse.ok) {
-        const listData = (await listResponse.json()) as {
-          partyDetails: { party: string }[];
-        };
-        const found = listData.partyDetails.find((p) =>
-          p.party.startsWith(`${partyHint}::`)
-        );
-        if (found) {
-          logger.info('Using existing party ID', { partyHint, partyId: found.party });
-          return found.party;
+    } else {
+      const errorBody = await response.text();
+      if (response.status === 400 && errorBody.includes('already exists')) {
+        logger.debug('Party already exists, fetching ID', { partyHint });
+        const listResponse = await fetch(`${this.baseUrl}/v2/parties`);
+        if (listResponse.ok) {
+          const listData = (await listResponse.json()) as { partyDetails: { party: string }[] };
+          const found = listData.partyDetails.find((p) => p.party.startsWith(`${partyHint}::`));
+          if (found) {
+            partyId = found.party;
+            logger.info('Using existing party ID', { partyHint, partyId });
+          } else {
+             throw new Error(`Failed to find party ${partyHint} despite exists error`);
+          }
         }
+      } else {
+        throw new Error(`Failed to allocate party "${partyHint}" (${response.status}): ${errorBody}`);
       }
     }
 
-    throw new Error(
-      `Failed to allocate party "${partyHint}" (${response.status}): ${errorBody}`
-    );
+    // Now create a Canton User so the JSON API commands can use it as userId
+    const userId = partyHint.toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    const userPayload = {
+      user: { id: userId, primaryParty: partyId, identityProviderId: '' },
+      rights: [
+        { kind: { CanActAs: { value: { party: partyId } } } }
+      ]
+    };
+    
+    const userResponse = await fetch(`${this.baseUrl}/v2/users`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(userPayload)
+    });
+
+    if (!userResponse.ok) {
+      const userErr = await userResponse.text();
+      // Ignore already exists error for user
+      if (!userErr.includes('ALREADY_EXISTS') && !userErr.includes('already exists')) {
+        logger.warn('Failed to create user for party (it might already exist)', { userId, err: userErr });
+      }
+    } else {
+      logger.info('Created user for party', { userId, partyId });
+    }
+
+    return partyId;
   }
 
+
+  /**
+   * Grants additional rights to a Canton User.
+   */
+  async grantUserRights(userId: string, rights: any[]): Promise<void> {
+    const url = `${this.baseUrl}/v2/user-rights/grant`;
+    logger.info('Granting user rights', { userId, rightsCount: rights.length });
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, rights }),
+    });
+
+    if (!response.ok) {
+      const errBody = await response.text();
+      logger.warn('Failed to grant user rights', { userId, err: errBody });
+    }
+  }
 
   /**
    * Makes an HTTP request to the Canton JSON Ledger API v2.
@@ -1101,7 +1144,7 @@ export class LedgerService {
         payload: {
           ...payload,
           costBasisPerWafer: fin ? fin.costBasisPerWafer : '0.0',
-          status: 'Pending Transfer'
+          status: 'PendingTransfer'
         } as CapacityAssetType
       };
     });
@@ -1134,6 +1177,24 @@ export class LedgerService {
       });
 
     return [...mappedActive, ...mappedLocked, ...subLeases];
+  }
+
+  async queryFinancialsByParty(ctx: PartyContext): Promise<any[]> {
+    logger.debug('Querying CapacityFinancials', { party: ctx.actingParty });
+    const events = await this.queryActiveContracts(ctx, TEMPLATE_IDS.CapacityFinancials);
+    return events.map((e) => ({
+      contractId: e.createdEvent.contractId,
+      payload: e.createdEvent.createArgument as any,
+    }));
+  }
+
+  async queryLocksByParty(ctx: PartyContext): Promise<any[]> {
+    logger.debug('Querying CapacityAssetLocks', { party: ctx.actingParty });
+    const events = await this.queryActiveContracts(ctx, TEMPLATE_IDS.CapacityAssetLock);
+    return events.map((e) => ({
+      contractId: e.createdEvent.contractId,
+      payload: e.createdEvent.createArgument as any,
+    }));
   }
 
   /**

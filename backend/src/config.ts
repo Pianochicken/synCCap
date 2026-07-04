@@ -86,4 +86,13 @@ export const config = {
       .split(',')
       .map((o) => o.trim()),
   },
+
+  /**
+   * Devnet Seaport Auth Configuration (Hackathon M2M Client)
+   */
+  devnet: {
+    clientId: process.env.DEVNET_CLIENT_ID || '',
+    clientSecret: process.env.DEVNET_CLIENT_SECRET || '',
+    tokenUrl: process.env.DEVNET_TOKEN_URL || 'https://auth.sandbox.fivenorth.io/application/o/token/',
+  }
 } as const;

@@ -1,7 +1,6 @@
 import axios from 'axios';
 
-// The Backend API is running on port 3000
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+const API_BASE_URL = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:3000';
 
 const client = axios.create({
   baseURL: API_BASE_URL,
@@ -62,6 +61,22 @@ export const ApiService = {
    */
   async getAssets(): Promise<any[]> {
     const res = await client.get('/api/v1/assets');
+    return res.data.data || [];
+  },
+
+  /**
+   * Get all CapacityFinancials visible to the currently logged in party.
+   */
+  async getFinancials(): Promise<any[]> {
+    const res = await client.get('/api/v1/financials');
+    return res.data.data || [];
+  },
+
+  /**
+   * Get all CapacityAssetLocks visible to the currently logged in party.
+   */
+  async getLocks(): Promise<any[]> {
+    const res = await client.get('/api/v1/locks');
     return res.data.data || [];
   },
 

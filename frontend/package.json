@@ -10,13 +10,19 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@c7-digital/ledger": "^0.0.29",
+    "@c7-digital/react": "^0.0.23",
+    "@daml.js/synccap-v3-0.1.0": "file:daml.js/synccap-v3-0.1.0",
+    "@daml/types": "^3.5.2",
     "axios": "^1.18.0",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
     "lucide-react": "^1.21.0",
+    "oidc-client-ts": "^3.5.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-hot-toast": "^2.6.0",
+    "react-oidc-context": "^3.3.1",
     "react-router-dom": "^7.18.0",
     "tailwind-merge": "^3.6.0"
   },

@@ -166,6 +166,57 @@
   .badge-blue  { @apply badge bg-blue-500/10   text-blue-500;    }
   .badge-amber { @apply badge bg-amber-500/10  text-amber-500;   }
   .badge-red   { @apply badge bg-red-500/10    text-red-500;     }
+
+  /* ── Status Badges ──────────────────────────────────────────── */
+  .status-badge {
+    @apply inline-flex items-center gap-1 text-[0.65rem] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full whitespace-nowrap;
+  }
+  /* Green — Active, healthy */
+  .status-active {
+    @apply bg-emerald-500/15 text-emerald-600 dark:text-emerald-400;
+    border: 1px solid rgba(16,217,126,0.25);
+  }
+  /* Amber — Awaiting response / pending */
+  .status-pending {
+    @apply bg-amber-500/15 text-amber-600 dark:text-amber-400;
+    border: 1px solid rgba(245,158,11,0.25);
+  }
+  /* Blue — Propose Transfer / in-flight */
+  .status-propose {
+    @apply bg-blue-500/15 text-blue-600 dark:text-blue-400;
+    border: 1px solid rgba(59,130,246,0.25);
+  }
+  /* Gray — Transferred / completed */
+  .status-transferred {
+    @apply bg-gray-500/15 text-gray-600 dark:text-gray-400;
+    border: 1px solid rgba(107,114,128,0.25);
+  }
+  /* Red — Penalized / cancelled */
+  .status-penalized {
+    @apply bg-red-500/15 text-red-600 dark:text-red-400;
+    border: 1px solid rgba(239,68,68,0.25);
+  }
+  /* Fallback */
+  .status-inactive {
+    @apply bg-gray-500/10 text-gray-500;
+    border: 1px solid rgba(107,114,128,0.15);
+  }
+
+  /* ── List Item Card ─────────────────────────────────────────── */
+  .list-item-card {
+    @apply rounded-xl p-4;
+    background: var(--bg-surface-2);
+    border: 1px solid var(--border-color);
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .list-item-card:hover {
+    border-color: var(--border-strong);
+  }
+
+  /* ── Custom scrollbar (component scope) ─────────────────────── */
+  .custom-scrollbar::-webkit-scrollbar       { width: 4px; }
+  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+  .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 999px; }
 }
 
 /* ─────────────────────────────────────────────

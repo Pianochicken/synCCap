@@ -50,9 +50,9 @@ afterAll((done) => {
 // Canton Sandbox is persistent between runs unless restarted.
 // We append a random suffix to ensure a clean state for every test execution.
 const runId = Math.random().toString(36).substring(2, 8);
-const MANUFACTURER = `TSMC-${runId}`;
-const PRIMARY_BUYER = `AppleInc-${runId}`;
-const SECONDARY_BUYER = `QualcommInc-${runId}`;
+const MANUFACTURER = `synccap-manufacturer-${runId}`;
+const PRIMARY_BUYER = `synccap-primary-buyer-${runId}`;
+const SECONDARY_BUYER = `synccap-secondary-buyer-${runId}`;
 
 /** Tokens obtained during setup. */
 let manufacturerToken: string;
@@ -122,12 +122,12 @@ describe('POST /auth/token', () => {
     secondaryBuyerToken = secondaryRes.body.token;
     if (secondaryRes.body.partyId) secondaryBuyerPartyId = secondaryRes.body.partyId;
 
-    // Dual-party token: actAs TSMC, readAs AppleInc (using real IDs if available)
+    // Dual-party token: actAs Manufacturer AND Primary Buyer
     const dualRes = await request(app)
       .post('/auth/token')
       .send({
         party: MANUFACTURER,
-        readAs: [PRIMARY_BUYER],
+        additionalActAs: [PRIMARY_BUYER],
       })
       .expect(200);
     dualPartyToken = dualRes.body.token;

@@ -51,7 +51,9 @@ Because this project uses `@hono/zod-openapi`, the API documentation is fully au
 
 From the Swagger UI, you can view the exact schema requirements for each endpoint and send test requests directly to the ledger. 
 
-> **Note:** For Canton integration endpoints under `/api/v1/*`, you will need a Bearer token. You can generate a sandbox token for any party using the `POST /auth/token` endpoint.
+> **Note:** For Canton integration endpoints under `/api/v1/*`, you will need a Bearer token. 
+> - **Local Sandbox**: Generate a token for any party using `POST /auth/token`.
+> - **Devnet**: Get the Hackathon M2M Devnet token using `GET /auth/devnet/token`.
 
 ## 🧪 Testing
 

@@ -202,3 +202,39 @@ When designing UIs and APIs:
 - [ ] Which choices create new contracts visible to different parties?
 - [ ] Is there a sub-transaction that archives a contract containing sensitive data
       before a new observer can see it?
+
+---
+
+## 9. Canton 3.x User Management & JSON API Rights Format
+
+### Rule: Users are Mandatory for Command Submission
+In Canton 3.x, even if the sandbox is running in **no-auth mode**, the `userId` provided in a command payload MUST actually exist in Canton's user management database. If you submit a command with an unknown `userId`, Canton will reject it with `404 USER_NOT_FOUND`. 
+Therefore, after allocating a Party, you MUST also create a User via `POST /v2/users`.
+
+### Rule: Strict gRPC-JSON Transcoded Rights Format
+When creating a User via the JSON API, the format for the `rights` array uses strict gRPC transcoded syntax (nested `kind` objects with capitalized variants). The older Canton 2.x syntax (`{ type: 'canActAs', party: '...' }`) will fail with `INVALID_ARGUMENT: unknown kind of right`.
+
+### Implementation Pattern
+```typescript
+// ✅ CORRECT Canton 3.x Format
+const userPayload = {
+  user: { 
+    id: "my-valid-user-id", // Must match [a-z0-9_.-]+ (no double colons '::')
+    primaryParty: "my-party::12345",
+    identityProviderId: "" // REQUIRED field
+  },
+  rights: [
+    { kind: { CanActAs: { value: { party: "my-party::12345" } } } },
+    { kind: { CanReadAs: { value: { party: "other-party::67890" } } } }
+  ]
+};
+
+// ❌ WRONG (Canton 2.x Format - Will cause INVALID_ARGUMENT)
+const wrongPayload = {
+  user: { id: "my-user", primaryParty: "my-party::123" },
+  rights: [
+    { type: "participantAdmin" },
+    { type: "canActAs", party: "my-party::123" }
+  ]
+};
+```

@@ -24,24 +24,24 @@ import type { AuthSession, CompanyConfig, PartyRole } from '../types/AuthSession
 
 const COMPANIES: CompanyConfig[] = [
   {
-    id: 'TSMC',
-    displayName: 'TSMC',
+    id: 'synccap-manufacturer-1',
+    displayName: 'Manufacturer',
     role: 'Manufacturer',
     description: 'Semiconductor foundry. Issue and settle capacity tokens on the Canton ledger.',
     icon: '🏭',
     accentColor: '#4f8dff',
   },
   {
-    id: 'AppleInc',
-    displayName: 'Apple Inc.',
+    id: 'synccap-primary-buyer-1',
+    displayName: 'Primary Buyer',
     role: 'PrimaryBuyer',
     description: 'Primary capacity purchaser. Acquire foundry capacity and access the dark pool.',
-    icon: '🍎',
+    icon: '🏢',
     accentColor: '#a78bfa',
   },
   {
-    id: 'QualcommInc',
-    displayName: 'Qualcomm',
+    id: 'synccap-secondary-buyer-1',
+    displayName: 'Secondary Buyer',
     role: 'SecondaryBuyer',
     description: 'Secondary market acquirer. Purchase capacity through the privacy-preserving dark pool.',
     icon: '📡',
@@ -55,6 +55,8 @@ const ROLE_LABELS: Record<PartyRole, string> = {
   SecondaryBuyer: 'Secondary Buyer',
 };
 
+import { useNetwork } from '../context/NetworkContext';
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -65,6 +67,7 @@ interface LoginPageProps {
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const navigate = useNavigate();
+  const { network } = useNetwork();
   const [loadingCompanyId, setLoadingCompanyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -73,11 +76,25 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     setError(null);
 
     try {
+      if (network === 'devnet') {
+        // Devnet M2M hack: We bypass the backend's local /auth/token allocation 
+        // since Devnet Auth Server provides a single token for all actions.
+        // We simulate the session but all network calls will use the devnet token's identity.
+        const session: AuthSession = {
+          partyId: 'validator-devnet-m2m', // Simulated identity for devnet
+          displayName: company.displayName + ' (Devnet)',
+          role: company.role,
+        };
+        onLogin(session);
+        navigate('/dashboard');
+        return;
+      }
+
       // For the Manufacturer, we request additional actAs for the buyers.
       // This grants the foundry the ability to issue assets directly to buyer
       // parties as co-signatories — a Canton sandbox-specific convenience.
       const additionalActAs = company.role === 'Manufacturer'
-        ? ['AppleInc', 'QualcommInc']
+        ? ['synccap-primary-buyer-1', 'synccap-secondary-buyer-1']
         : [];
 
       const { partyId } = await ApiService.login(company.id, additionalActAs);

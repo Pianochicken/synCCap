@@ -188,7 +188,7 @@ The design system is built on CSS custom properties (`:root` for light, `.dark` 
 ### Frontend Environment
 
 ```
-VITE_API_BASE_URL=http://localhost:3000   # Backend URL (defaults to :3000 if not set)
+VITE_BACKEND_API_URL=http://localhost:3000   # Backend URL (defaults to :3000 if not set)
 ```
 
 ### How to Run
@@ -252,7 +252,7 @@ synCCap/
 └── frontend/
     ├── index.html                       # Inter font, SEO meta tags
     ├── tailwind.config.js               # darkMode: 'class', custom colors & keyframes
-    ├── .env                             # VITE_API_BASE_URL (defaults to :3000)
+    ├── .env                             # VITE_BACKEND_API_URL (defaults to :3000)
     └── src/
         ├── main.tsx                     # Root; wraps in ThemeProvider
         ├── App.tsx                      # Page router: landing / dashboard

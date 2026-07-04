@@ -126,7 +126,45 @@ apiRouter.openapi(
     }
   }
 );
+apiRouter.openapi(
+  createRoute({
+    method: 'get',
+    path: '/financials',
+    summary: 'Query CapacityFinancials',
+    responses: {
+      200: { description: 'List of financials', content: { 'application/json': { schema: z.any() } } }
+    }
+  }),
+  async (c) => {
+    try {
+      const ctx = getPartyContext(c);
+      const financials = await ledgerService.queryFinancialsByParty(ctx);
+      return c.json({ data: financials, count: financials.length }, 200);
+    } catch (err) {
+      return mapLedgerError(err, c, 'queryFinancialsByParty');
+    }
+  }
+);
 
+apiRouter.openapi(
+  createRoute({
+    method: 'get',
+    path: '/locks',
+    summary: 'Query CapacityAssetLocks',
+    responses: {
+      200: { description: 'List of locks', content: { 'application/json': { schema: z.any() } } }
+    }
+  }),
+  async (c) => {
+    try {
+      const ctx = getPartyContext(c);
+      const locks = await ledgerService.queryLocksByParty(ctx);
+      return c.json({ data: locks, count: locks.length }, 200);
+    } catch (err) {
+      return mapLedgerError(err, c, 'queryLocksByParty');
+    }
+  }
+);
 apiRouter.openapi(
   createRoute({
     method: 'post',

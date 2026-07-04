@@ -205,12 +205,12 @@ Always write flat selectors:
 The frontend API client's default `baseURL` must match the backend's actual default port.
 
 ```tsx
-// ✅ Backend defaults to PORT=4000, so frontend must match
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
+// ✅ Backend defaults to PORT=3000, so frontend must match
+const API_BASE_URL = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:3000';
 ```
 
-Mismatching default ports (e.g., frontend defaulting to `:3000` while backend runs on
-`:4000`) causes silent CORS/connection failures that are confusing to debug.
+Mismatching default ports (e.g., frontend defaulting to `:4000` while backend runs on
+`:3000`) causes silent CORS/connection failures that are confusing to debug.
 
 ---
 
