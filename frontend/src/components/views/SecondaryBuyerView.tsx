@@ -100,7 +100,7 @@ export const SecondaryBuyerView: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            {transfers.map((rfq) => {
+            {[...transfers].reverse().map((rfq) => {
               const askPrice = parseFloat(rfq.payload.askingPricePerWafer ?? '0');
               const wafers = parseInt(rfq.payload.waferStartsPerMonth ?? '0');
               const monthlyValue = askPrice * wafers;
@@ -274,7 +274,7 @@ export const SecondaryBuyerView: React.FC = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {assets.map((asset) => {
+            {[...assets].reverse().map((asset) => {
               const fin = financials.find((f) => f.payload.assetId === asset.payload.assetId);
               const acquisitionPrice = fin ? parseFloat(fin.payload.costBasisPerWafer) : 0;
               const wafers = parseInt(asset.payload.waferStartsPerMonth) || 0;

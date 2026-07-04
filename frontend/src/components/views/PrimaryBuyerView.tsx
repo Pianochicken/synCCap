@@ -52,7 +52,7 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
 
   const portfolioAssets = assets.filter(
     (a) => a.payload.status !== 'Transferred' && a.payload.status !== 'Sub-Leased' && a.payload.status !== 'Penalized',
-  );
+  ).reverse();
   const subLeasedAssets = assets.filter((a) => a.payload.status === 'Transferred' || a.payload.status === 'Sub-Leased').reverse();
   const sortedRejectedLogs = [...rejectedLogs].reverse();
   const sortedWithdrawnLogs = [...withdrawnLogs].reverse();
@@ -408,7 +408,7 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
             </div>
           ) : (
             <div className="space-y-3">
-              {transfers.map((rfq) => {
+              {[...transfers].reverse().map((rfq) => {
                 const askPrice = parseFloat(rfq.payload.askingPricePerWafer ?? '0');
                 const wafers = parseInt(rfq.payload.waferStartsPerMonth ?? '0');
                 const monthlyAsk = askPrice * wafers;
@@ -503,24 +503,52 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
                     const unitPrice = fin ? parseFloat(fin.payload.costBasisPerWafer) : 0;
                     const wafers = parseInt(asset.payload.waferStartsPerMonth) || 0;
 
+                    const ts = asset.payload.timestamp
+                      ? new Date(asset.payload.timestamp).toLocaleString(undefined, {
+                          year: 'numeric', month: 'short', day: 'numeric', 
+                          hour: '2-digit', minute: '2-digit', second: '2-digit'
+                        })
+                      : '—';
+                    const monthlyValue = wafers * unitPrice;
+                    const totalValue = monthlyValue * 12;
+
                     return (
                       <div key={asset.contractId} className="list-item-card py-3 px-3 border-l-2 border-l-gray-300 dark:border-l-gray-600">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="font-mono text-sm font-bold">{asset.payload.assetId}</span>
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <div className="font-mono text-sm font-bold">{asset.payload.assetId}</div>
+                            <div className="text-[0.6rem] mt-0.5" style={{ color: 'var(--text-muted)' }}>Transferred: {ts}</div>
+                            <div className="text-[0.65rem] uppercase tracking-wider mt-1 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+                              Buyer:&nbsp;
+                              <PartyLabel partyId={asset.payload.owner} />
+                            </div>
+                          </div>
                           <span className="status-badge status-transferred">Transferred</span>
                         </div>
-                        <div className="grid grid-cols-3 gap-2 text-xs mt-2">
-                          <div>
-                            <div style={{ color: 'var(--text-muted)' }}>Node</div>
-                            <div className="font-medium" style={{ color: 'var(--text-primary)' }}>{asset.payload.technologyNode}</div>
+                        <div className="grid grid-cols-2 gap-2 text-xs mt-2">
+                          <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
+                            <div style={{ color: 'var(--text-muted)' }}>Node / Monthly Wafers</div>
+                            <div className="font-mono font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>
+                              {asset.payload.technologyNode} / {wafers.toLocaleString()}
+                            </div>
                           </div>
-                          <div>
-                            <div style={{ color: 'var(--text-muted)' }}>Monthly Wafers</div>
-                            <div className="font-medium" style={{ color: 'var(--text-primary)' }}>{wafers.toLocaleString()}</div>
+                          <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
+                            <div style={{ color: 'var(--text-muted)' }}>Unit Price / Wafer</div>
+                            <div className="font-mono font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>
+                              ${fmt2(unitPrice)}
+                            </div>
                           </div>
-                          <div>
-                            <div style={{ color: 'var(--text-muted)' }}>Original Unit Price</div>
-                            <div className="font-mono font-bold" style={{ color: 'var(--text-primary)' }}>${fmt2(unitPrice)}</div>
+                          <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
+                            <div style={{ color: 'var(--text-muted)' }}>Monthly Value</div>
+                            <div className="font-mono font-medium mt-0.5 text-blue-500">
+                              ${fmt2(monthlyValue)}
+                            </div>
+                          </div>
+                          <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
+                            <div style={{ color: 'var(--text-muted)' }}>Total Contract Value</div>
+                            <div className="font-mono font-bold mt-0.5 text-emerald-500">
+                              ${fmt2(totalValue)}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -549,13 +577,20 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
                         })
                       : '—';
                     const askPrice = parseFloat(log.payload.askingPricePerWafer ?? '0');
+                    const wafers = parseInt(log.payload.waferStartsPerMonth ?? '0');
+                    const monthlyValue = wafers * askPrice;
+                    const totalValue = monthlyValue * 12;
 
                     return (
                       <div key={log.contractId} className="list-item-card py-3 px-3 border-l-2 border-l-red-400 bg-red-50/30 dark:bg-red-900/10">
                         <div className="flex justify-between items-start mb-2">
                           <div>
                             <div className="font-mono text-sm font-bold">{log.payload.assetId}</div>
-                            <div className="text-[0.6rem] mt-0.5" style={{ color: 'var(--text-muted)' }}>{ts}</div>
+                            <div className="text-[0.6rem] mt-0.5" style={{ color: 'var(--text-muted)' }}>Rejected: {ts}</div>
+                            <div className="text-[0.65rem] uppercase tracking-wider mt-1 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+                              Buyer:&nbsp;
+                              <PartyLabel partyId={log.payload.buyer} />
+                            </div>
                           </div>
                           {log.payload.isReclaimed ? (
                             <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
@@ -571,15 +606,29 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
                             </button>
                           )}
                         </div>
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          <div>
-                            <div style={{ color: 'var(--text-muted)' }}>Rejected Asking Price</div>
-                            <div className="font-mono font-bold text-red-500">${fmt2(askPrice)}</div>
+                        <div className="grid grid-cols-2 gap-2 text-xs mt-2">
+                          <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
+                            <div style={{ color: 'var(--text-muted)' }}>Monthly Wafers</div>
+                            <div className="font-mono font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>
+                              {wafers.toLocaleString()}
+                            </div>
                           </div>
-                          <div>
-                            <div style={{ color: 'var(--text-muted)' }}>Buyer</div>
-                            <div className="font-medium" style={{ color: 'var(--text-secondary)' }}>
-                              {log.payload.buyer?.split('::')[0] ?? '—'}
+                          <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
+                            <div style={{ color: 'var(--text-muted)' }}>Asking Unit Price</div>
+                            <div className="font-mono font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>
+                              ${fmt2(askPrice)}
+                            </div>
+                          </div>
+                          <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
+                            <div style={{ color: 'var(--text-muted)' }}>Monthly Value</div>
+                            <div className="font-mono font-medium mt-0.5 text-blue-500">
+                              ${fmt2(monthlyValue)}
+                            </div>
+                          </div>
+                          <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
+                            <div style={{ color: 'var(--text-muted)' }}>Total Contract Value</div>
+                            <div className="font-mono font-bold mt-0.5 text-emerald-500">
+                              ${fmt2(totalValue)}
                             </div>
                           </div>
                         </div>
@@ -608,11 +657,49 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
                           hour: '2-digit', minute: '2-digit', second: '2-digit'
                         })
                       : '—';
+                    const askPrice = parseFloat(log.payload.askingPricePerWafer ?? '0');
+                    const wafers = parseInt(log.payload.waferStartsPerMonth ?? '0');
+                    const monthlyValue = wafers * askPrice;
+                    const totalValue = monthlyValue * 12;
+
                     return (
-                      <div key={log.contractId} className="list-item-card py-2 px-3 border-l-2 border-l-gray-300">
-                        <div className="flex justify-between items-center">
-                          <span className="font-mono text-sm">{log.payload.assetId}</span>
-                          <span className="text-xs font-medium text-gray-500">{ts} · Withdrawn</span>
+                      <div key={log.contractId} className="list-item-card py-3 px-3 border-l-2 border-l-gray-300">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <div className="font-mono text-sm font-bold">{log.payload.assetId}</div>
+                            <div className="text-[0.6rem] mt-0.5" style={{ color: 'var(--text-muted)' }}>Withdrawn: {ts}</div>
+                            <div className="text-[0.65rem] uppercase tracking-wider mt-1 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+                              Target Buyer:&nbsp;
+                              <PartyLabel partyId={log.payload.buyer} />
+                            </div>
+                          </div>
+                          <span className="status-badge status-inactive">Withdrawn</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs mt-2">
+                          <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
+                            <div style={{ color: 'var(--text-muted)' }}>Monthly Wafers</div>
+                            <div className="font-mono font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>
+                              {wafers.toLocaleString()}
+                            </div>
+                          </div>
+                          <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
+                            <div style={{ color: 'var(--text-muted)' }}>Asking Unit Price</div>
+                            <div className="font-mono font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>
+                              ${fmt2(askPrice)}
+                            </div>
+                          </div>
+                          <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
+                            <div style={{ color: 'var(--text-muted)' }}>Monthly Value</div>
+                            <div className="font-mono font-medium mt-0.5 text-blue-500">
+                              ${fmt2(monthlyValue)}
+                            </div>
+                          </div>
+                          <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
+                            <div style={{ color: 'var(--text-muted)' }}>Total Contract Value</div>
+                            <div className="font-mono font-bold mt-0.5 text-emerald-500">
+                              ${fmt2(totalValue)}
+                            </div>
+                          </div>
                         </div>
                       </div>
                     );

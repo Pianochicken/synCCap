@@ -1171,7 +1171,8 @@ export class LedgerService {
             costBasisPerWafer: f.payload.costBasisPerWafer,
             commitmentStartDate: 'Unknown',
             commitmentEndDate: 'Unknown',
-            status: 'Sub-Leased'
+            status: 'Sub-Leased',
+            timestamp: f.payload.timestamp
           } as unknown as CapacityAssetType
         };
       });

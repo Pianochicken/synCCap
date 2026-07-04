@@ -225,7 +225,7 @@ export const ManufacturerView: React.FC<{ partyId: string }> = ({ partyId: manuf
                 No capacity tokens issued yet.
               </div>
             ) : (
-              assets.map((asset) => {
+              [...assets].reverse().map((asset) => {
                 const fin = financials.find((f) => f.payload.assetId === asset.payload.assetId);
                 const unitPrice = fin ? parseFloat(fin.payload.costBasisPerWafer) : 0;
                 const wafers = parseInt(asset.payload.waferStartsPerMonth) || 0;

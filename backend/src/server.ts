@@ -39,8 +39,8 @@ const server = serve(
       ledgerUrl: config.ledger.baseUrl,
     });
     logger.info('Available endpoints:');
-    logger.info('  Swagger UI: http://localhost:3000/swagger');
-    logger.info('  OpenAPI Spec: http://localhost:3000/docs');
+    logger.info(`  Swagger UI: http://localhost:${info.port}/swagger`);
+    logger.info(`  OpenAPI Spec: http://localhost:${info.port}/docs`);
     logger.info('  POST /auth/token              — Issue sandbox JWT');
     logger.info('  GET  /health                  — Health check');
     logger.info('  POST /api/v1/assets           — Create CapacityAsset');
