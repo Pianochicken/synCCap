@@ -108,7 +108,7 @@ export const SecondaryBuyerView: React.FC = () => {
               const ts = rfq.payload.timestamp
                 ? new Date(rfq.payload.timestamp).toLocaleString(undefined, {
                     year: 'numeric', month: 'short', day: 'numeric',
-                    hour: '2-digit', minute: '2-digit',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit'
                   })
                 : '—';
 
@@ -281,8 +281,9 @@ export const SecondaryBuyerView: React.FC = () => {
               const monthlyValue = acquisitionPrice * wafers;
               const totalValue = monthlyValue * 12;
               const ts = asset.payload.timestamp
-                ? new Date(asset.payload.timestamp).toLocaleDateString(undefined, {
+                ? new Date(asset.payload.timestamp).toLocaleString(undefined, {
                     year: 'numeric', month: 'short', day: 'numeric',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit'
                   })
                 : '—';
 

@@ -51,9 +51,11 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
   const [selectedPenaltyAmount, setSelectedPenaltyAmount] = useState<number>(0);
 
   const portfolioAssets = assets.filter(
-    (a) => a.payload.status !== 'Transferred' && a.payload.status !== 'Penalized',
+    (a) => a.payload.status !== 'Transferred' && a.payload.status !== 'Sub-Leased' && a.payload.status !== 'Penalized',
   );
-  const subLeasedAssets = assets.filter((a) => a.payload.status === 'Transferred');
+  const subLeasedAssets = assets.filter((a) => a.payload.status === 'Transferred' || a.payload.status === 'Sub-Leased').reverse();
+  const sortedRejectedLogs = [...rejectedLogs].reverse();
+  const sortedWithdrawnLogs = [...withdrawnLogs].reverse();
 
   const handleWithdrawTransfer = (rfqContractId: string) => {
     setSelectedWithdrawRfqId(rfqContractId);
@@ -210,10 +212,10 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
               const form = getForm(asset.contractId);
 
               const ts = asset.payload.timestamp
-                ? new Date(asset.payload.timestamp).toLocaleString(undefined, {
-                    year: 'numeric', month: 'short', day: 'numeric',
-                    hour: '2-digit', minute: '2-digit',
-                  })
+                  ? new Date(asset.payload.timestamp).toLocaleString(undefined, {
+                      year: 'numeric', month: 'short', day: 'numeric',
+                      hour: '2-digit', minute: '2-digit', second: '2-digit'
+                    })
                 : '—';
 
               return (
@@ -413,7 +415,8 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
                 const totalAsk = monthlyAsk * 12;
                 const ts = rfq.payload.timestamp
                   ? new Date(rfq.payload.timestamp).toLocaleString(undefined, {
-                      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+                      year: 'numeric', month: 'short', day: 'numeric', 
+                      hour: '2-digit', minute: '2-digit', second: '2-digit'
                     })
                   : '—';
 
@@ -538,10 +541,11 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
                 <div className="text-xs text-gray-400 dark:text-gray-500 px-1 italic">No rejected offers.</div>
               ) : (
                 <div className="space-y-2">
-                  {rejectedLogs.map((log) => {
+                  {sortedRejectedLogs.map((log) => {
                     const ts = log.payload.timestamp
                       ? new Date(log.payload.timestamp).toLocaleString(undefined, {
-                          month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+                          year: 'numeric', month: 'short', day: 'numeric', 
+                          hour: '2-digit', minute: '2-digit', second: '2-digit'
                         })
                       : '—';
                     const askPrice = parseFloat(log.payload.askingPricePerWafer ?? '0');
@@ -553,13 +557,19 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
                             <div className="font-mono text-sm font-bold">{log.payload.assetId}</div>
                             <div className="text-[0.6rem] mt-0.5" style={{ color: 'var(--text-muted)' }}>{ts}</div>
                           </div>
-                          <button
-                            onClick={() => handleAcknowledgeRejection(log.contractId)}
-                            disabled={loading}
-                            className="btn-primary text-xs px-2 py-1 bg-gray-800 hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600"
-                          >
-                            Acknowledge
-                          </button>
+                          {log.payload.isReclaimed ? (
+                            <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                              Reclaimed
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => handleAcknowledgeRejection(log.contractId)}
+                              disabled={loading}
+                              className="btn-primary text-xs px-2 py-1 bg-gray-800 hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600"
+                            >
+                              Acknowledge
+                            </button>
+                          )}
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-xs">
                           <div>
@@ -591,10 +601,11 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
                 <div className="text-xs text-gray-400 dark:text-gray-500 px-1 italic">No withdrawn offers.</div>
               ) : (
                 <div className="space-y-2 opacity-70">
-                  {withdrawnLogs.map((log) => {
+                  {sortedWithdrawnLogs.map((log) => {
                     const ts = log.payload.timestamp
                       ? new Date(log.payload.timestamp).toLocaleString(undefined, {
-                          month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+                          year: 'numeric', month: 'short', day: 'numeric', 
+                          hour: '2-digit', minute: '2-digit', second: '2-digit'
                         })
                       : '—';
                     return (

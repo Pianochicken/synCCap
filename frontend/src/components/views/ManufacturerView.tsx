@@ -232,9 +232,10 @@ export const ManufacturerView: React.FC<{ partyId: string }> = ({ partyId: manuf
                 const monthlyVal = unitPrice * wafers;
                 const totalVal = monthlyVal * 12;
                 const ts = asset.payload.timestamp
-                  ? new Date(asset.payload.timestamp).toLocaleDateString(undefined, {
-                      year: 'numeric', month: 'short', day: 'numeric',
-                    })
+                  ? new Date(asset.payload.timestamp).toLocaleString(undefined, {
+                    year: 'numeric', month: 'short', day: 'numeric',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit'
+                  })
                   : '—';
 
                 return (
@@ -307,41 +308,72 @@ export const ManufacturerView: React.FC<{ partyId: string }> = ({ partyId: manuf
             No pending penalty settlements.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="text-xs uppercase bg-gray-50 dark:bg-gray-800/50 text-gray-500 dark:text-gray-400">
-                <tr>
-                  <th className="px-4 py-3 rounded-tl-lg">Penalized Party</th>
-                  <th className="px-4 py-3">Asset ID</th>
-                  <th className="px-4 py-3">Penalty Rate</th>
-                  <th className="px-4 py-3">Penalty Amount</th>
-                  <th className="px-4 py-3 text-right rounded-tr-lg">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                {penalties.map((penalty) => (
-                  <tr key={penalty.contractId} className="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
-                    <td className="px-4 py-3 font-medium" style={{ color: 'var(--text-primary)' }}>
-                      <PartyLabel partyId={penalty.payload.penalizedParty} />
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs">{penalty.payload.assetId}</td>
-                    <td className="px-4 py-3">{penalty.payload.penaltyRate}%</td>
-                    <td className="px-4 py-3 font-bold text-red-600 dark:text-red-400">
-                      ${parseFloat(penalty.payload.penaltyAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => handleSettlePenalty(penalty.contractId)}
-                        disabled={loading}
-                        className="btn-primary py-1.5 px-3 text-xs"
-                      >
-                        Settle Payment
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-4 max-h-[500px] overflow-auto pr-2 custom-scrollbar">
+            {[...penalties].reverse().map((penalty) => {
+              const ts = penalty.payload.timestamp
+                ? new Date(penalty.payload.timestamp).toLocaleString(undefined, {
+                    year: 'numeric', month: 'short', day: 'numeric',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit'
+                  })
+                : '—';
+              const wafers = parseInt(penalty.payload.waferStartsPerMonth) || 0;
+              const unitPrice = parseFloat(penalty.payload.costBasisPerWafer) || 0;
+              const totalVal = wafers * unitPrice * 12;
+              const penaltyRatePct = parseFloat(penalty.payload.penaltyRate) * 100;
+
+              return (
+                <div key={penalty.contractId} className="list-item-card border-l-4 border-l-red-500 bg-red-50/10 dark:bg-red-900/10">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <div className="font-bold text-sm tracking-tight" style={{ color: 'var(--text-primary)' }}>
+                        {penalty.payload.assetId}
+                      </div>
+                      <div className="text-[0.65rem] uppercase tracking-wider mt-0.5 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+                        Penalized Party:&nbsp;
+                        <PartyLabel partyId={penalty.payload.penalizedParty} />
+                      </div>
+                      <div className="text-[0.65rem] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                        Cancelled: {ts}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleSettlePenalty(penalty.contractId)}
+                      disabled={loading}
+                      className="btn-primary py-1.5 px-3 text-xs"
+                    >
+                      Settle Payment
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
+                      <div style={{ color: 'var(--text-muted)' }}>Node / Monthly Wafers</div>
+                      <div className="font-mono font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>
+                        {penalty.payload.technologyNode} / {wafers.toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
+                      <div style={{ color: 'var(--text-muted)' }}>Unit Price / Wafer</div>
+                      <div className="font-mono font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>
+                        ${fmt2(unitPrice)}
+                      </div>
+                    </div>
+                    <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
+                      <div style={{ color: 'var(--text-muted)' }}>Total Contract Value</div>
+                      <div className="font-mono font-bold mt-0.5 text-emerald-500">
+                        ${totalVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                    <div className="bg-red-50 dark:bg-red-900/20 p-2 rounded border border-red-100 dark:border-red-900/30">
+                      <div className="text-red-600 dark:text-red-400 font-medium">Penalty Amount ({fmt2(penaltyRatePct)}%)</div>
+                      <div className="font-mono font-bold mt-0.5 text-red-600 dark:text-red-400 text-sm">
+                        ${parseFloat(penalty.payload.penaltyAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
