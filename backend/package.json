@@ -25,6 +25,7 @@
     "hono": "^4.12.26",
     "jsonwebtoken": "^9.0.3",
     "winston": "^3.19.0",
+    "ws": "^8.21.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -32,6 +33,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^26.0.0",
     "@types/supertest": "^7.2.0",
+    "@types/ws": "^8.18.1",
     "jest": "^30.4.2",
     "supertest": "^7.2.2",
     "ts-jest": "^29.4.11",

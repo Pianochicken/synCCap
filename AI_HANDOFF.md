@@ -16,6 +16,7 @@
 | **Phase 2** | Node.js / TypeScript Backend REST API | ✅ Complete |
 | **Phase 3** | React Frontend (Vite + Tailwind + TypeScript) | ✅ Complete |
 | **Phase 4** | Demo Polish — README, DEMO_SCRIPT, UI Landing Page | ✅ Complete |
+| **Phase 5** | Real-Time Architecture (WebSockets & Optimistic UI) | ✅ Complete |
 
 ---
 
@@ -215,6 +216,20 @@ npm run dev    # Starts at http://localhost:5173
 - **Primary Track:** Private DeFi & Capital Markets
 - **Secondary Context:** TradeFi, RWA & Tokenized Assets
 - **Core Demo "Aha! Moment":** Qualcomm logs in and sees the incoming RFQ but **cannot see Apple's original cost basis** — this is the Canton privacy guarantee shown live
+
+---
+
+## Phase 5 Summary: Real-Time Architecture ✅
+
+### What Was Built
+
+Transitioned the frontend-to-backend communication from a 3-second HTTP polling interval to an **Event-Driven WebSocket Architecture**. 
+
+### Key Architecture Decisions
+
+- **Event-Driven Refresh:** The Node.js backend maintains a WebSocket server. When any REST API call successfully mutates state on the Canton Ledger (e.g., `POST /api/v1/transfers/propose`), the backend broadcasts a `REFRESH_DATA` event to all connected WebSocket clients.
+- **Frontend Reaction:** The React frontend (`useBackendQuery` hook) listens for this event and immediately triggers a background re-fetch. This completely eliminates the need for aggressive HTTP polling, reducing backend and ledger load by 90%+. A 60-second fallback polling interval is kept as a safety net against silent WebSocket disconnections.
+- **Optimistic UI:** During the API call, frontend components enter a targeted loading state (spinners, disabled buttons) to prevent double-submissions, and return to an active state instantly when the fresh data arrives via the WebSocket trigger.
 
 ---
 

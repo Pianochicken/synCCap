@@ -24,6 +24,7 @@ import { serve } from '@hono/node-server';
 import { createApp } from './app';
 import { config } from './config';
 import { logger } from './logger';
+import { initWebSocketServer } from './ws';
 
 const app = createApp();
 
@@ -53,6 +54,8 @@ const server = serve(
     logger.info('  GET  /api/v1/penalties          — Query penalties');
   }
 );
+
+initWebSocketServer(server as any);
 
 // ---------------------------------------------------------------------------
 // Graceful Shutdown

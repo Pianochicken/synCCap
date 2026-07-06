@@ -47,9 +47,44 @@ export function useBackendQuery() {
 
   useEffect(() => {
     fetchData();
-    // Poll every 3 seconds
-    const interval = setInterval(fetchData, 3000);
-    return () => clearInterval(interval);
+
+    // Setup WebSocket for event-driven refreshing
+    const backendUrl = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:3000';
+    const wsUrl = backendUrl.replace(/^http/, 'ws');
+      
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      console.log('WebSocket connected for real-time updates');
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'REFRESH_DATA') {
+          console.log('Received REFRESH_DATA event, fetching latest state...');
+          fetchData();
+        }
+      } catch (err) {
+        console.error('Failed to parse WebSocket message', err);
+      }
+    };
+
+    ws.onerror = (err) => {
+      console.error('WebSocket error:', err);
+    };
+
+    ws.onclose = () => {
+      console.log('WebSocket disconnected');
+    };
+
+    // Fallback polling (every 60 seconds) just in case WebSocket disconnects silently
+    const interval = setInterval(fetchData, 60000);
+    
+    return () => {
+      clearInterval(interval);
+      ws.close();
+    };
   }, [fetchData]);
 
   return {
