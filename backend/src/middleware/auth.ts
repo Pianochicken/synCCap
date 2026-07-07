@@ -91,16 +91,8 @@ export async function authenticate(c: Context<{ Variables: AuthVariables }>, nex
           const actingPartyHeader = c.req.header('X-Acting-Party');
           const devnetNamespace = config.devnet.namespace;
           
-          // If manufacturer, we need to act as buyers as well to create multi-party contracts on Devnet
-          const additionalActAs = actingPartyHeader?.includes('manufacturer') 
-            ? [
-                `synccap-primary-buyer-1::${devnetNamespace}`,
-                `synccap-secondary-buyer-1::${devnetNamespace}`
-              ]
-            : [];
-
           payload = {
-            actAs: [actingPartyHeader || 'validator-devnet-m2m', ...additionalActAs], // Generic devnet identity or requested FQDN
+            actAs: [actingPartyHeader || 'validator-devnet-m2m'], // Generic devnet identity or requested FQDN
             readAs: []
           };
           isDevnet = true;

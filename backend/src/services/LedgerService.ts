@@ -568,11 +568,12 @@ export class LedgerService {
       ctx,
       '/v2/commands/submit-and-wait',
       {
-        commands,
+        applicationId: 'synccap-backend',
+        commandId,
         actAs: actAs ?? ctx.actAsParties ?? [ctx.actingParty],
         readAs: ctx.readAsParties,
-        commandId,
-        userId: 'synccap-backend',
+        commands,
+        ...(ctx.isDevnet ? {} : { userId: 'synccap-backend' })
       }
     );
   }
@@ -1185,7 +1186,12 @@ export class LedgerService {
         };
       });
 
-    return [...mappedActive, ...mappedLocked, ...subLeases];
+    const combined = [...mappedActive, ...mappedLocked, ...subLeases];
+    return combined.sort((a, b) => {
+      const t1 = new Date(a.payload.timestamp || 0).getTime();
+      const t2 = new Date(b.payload.timestamp || 0).getTime();
+      return t1 - t2;
+    });
   }
 
   async queryFinancialsByParty(ctx: PartyContext): Promise<any[]> {
