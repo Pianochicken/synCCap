@@ -48,8 +48,10 @@ export interface DamlTokenPayload {
 
 export interface PartyContext {
   actingParty: string;
+  actAsParties?: string[];
   readAsParties: string[];
   token: string;
+  isDevnet?: boolean;
 }
 
 /**
@@ -76,7 +78,39 @@ export async function authenticate(c: Context<{ Variables: AuthVariables }>, nex
   const token = authHeader.slice(7); // Strip "Bearer "
 
   try {
-    const payload = jwt.verify(token, config.jwt.secret) as DamlTokenPayload;
+    let payload: DamlTokenPayload;
+    let isDevnet = false;
+    
+    try {
+      payload = jwt.verify(token, config.jwt.secret) as DamlTokenPayload;
+    } catch (verifyErr) {
+      if (verifyErr instanceof jwt.JsonWebTokenError) {
+        // Fallback for Devnet M2M token which is not signed by our local secret
+        const decoded = jwt.decode(token) as any;
+        if (decoded && (decoded.scope?.includes('daml_ledger_api') || decoded.aud === config.devnet.clientId)) {
+          const actingPartyHeader = c.req.header('X-Acting-Party');
+          const devnetNamespace = config.devnet.namespace;
+          
+          // If manufacturer, we need to act as buyers as well to create multi-party contracts on Devnet
+          const additionalActAs = actingPartyHeader?.includes('manufacturer') 
+            ? [
+                `synccap-primary-buyer-1::${devnetNamespace}`,
+                `synccap-secondary-buyer-1::${devnetNamespace}`
+              ]
+            : [];
+
+          payload = {
+            actAs: [actingPartyHeader || 'validator-devnet-m2m', ...additionalActAs], // Generic devnet identity or requested FQDN
+            readAs: []
+          };
+          isDevnet = true;
+        } else {
+          throw verifyErr;
+        }
+      } else {
+        throw verifyErr;
+      }
+    }
 
     if (!payload.actAs || payload.actAs.length === 0) {
       return c.json({
@@ -87,12 +121,15 @@ export async function authenticate(c: Context<{ Variables: AuthVariables }>, nex
 
     c.set('partyContext', {
       actingParty: payload.actAs[0],
+      actAsParties: payload.actAs,
       readAsParties: payload.readAs ?? [],
       token,
+      isDevnet,
     });
 
     logger.debug('Authenticated request', {
       party: payload.actAs[0],
+      isDevnet,
       path: c.req.path,
     });
 

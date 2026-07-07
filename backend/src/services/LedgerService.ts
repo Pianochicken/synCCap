@@ -269,32 +269,47 @@ export class LedgerService {
   // Party Management
   // -------------------------------------------------------------------------
 
+  private getBaseUrl(ctx?: PartyContext): string {
+    return ctx?.isDevnet ? config.devnet.apiUrl : this.baseUrl;
+  }
+
+  private getHeaders(ctx?: PartyContext): Record<string, string> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (ctx?.isDevnet && ctx.token) {
+      headers['Authorization'] = `Bearer ${ctx.token}`;
+    }
+    return headers;
+  }
+
   /**
    * Allocates a party on the Canton sandbox (or returns its existing ID).
    *
-   * Canton 3.x requires fully-qualified party IDs in the format:
-   *   `DisplayName::1220<fingerprint>`
-   *
-   * Simple strings like "TSMC" are NOT valid party IDs on their own.
-   * The sandbox creates a unique fingerprint for each party. This method
-   * calls the `/v2/parties` endpoint to allocate the party and returns
-   * the fully-qualified ID.
-   *
    * @param partyHint - Human-readable name (used as the party ID hint).
+   * @param ctx - Optional party context. If devnet, allocation is bypassed.
    * @returns The fully-qualified party ID (e.g., `TSMC::1220abc...`).
    */
-  async allocateParty(partyHint: string): Promise<string> {
+  async allocateParty(partyHint: string, ctx?: PartyContext): Promise<string> {
+    if (ctx?.isDevnet) {
+      if (partyHint.includes('::')) return partyHint;
+      // Devnet M2M token does not allocate parties dynamically,
+      // so we append the shared namespace to ensure it is fully qualified.
+      const devnetNamespace = config.devnet.namespace;
+      return `${partyHint}::${devnetNamespace}`;
+    }
+
     if (partyHint.includes('::')) {
       return partyHint;
     }
 
-    const url = `${this.baseUrl}/v2/parties`;
+    const url = `${this.getBaseUrl(ctx)}/v2/parties`;
 
     logger.info('Allocating party on Canton sandbox', { partyHint });
 
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: this.getHeaders(ctx),
       body: JSON.stringify({ partyIdHint: partyHint, identityProviderId: '' }),
     });
 
@@ -310,7 +325,7 @@ export class LedgerService {
       const errorBody = await response.text();
       if (response.status === 400 && errorBody.includes('already exists')) {
         logger.debug('Party already exists, fetching ID', { partyHint });
-        const listResponse = await fetch(`${this.baseUrl}/v2/parties`);
+        const listResponse = await fetch(`${this.getBaseUrl(ctx)}/v2/parties`, { headers: this.getHeaders(ctx) });
         if (listResponse.ok) {
           const listData = (await listResponse.json()) as { partyDetails: { party: string }[] };
           const found = listData.partyDetails.find((p) => p.party.startsWith(`${partyHint}::`));
@@ -335,9 +350,9 @@ export class LedgerService {
       ]
     };
     
-    const userResponse = await fetch(`${this.baseUrl}/v2/users`, {
+    const userResponse = await fetch(`${this.getBaseUrl(ctx)}/v2/users`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: this.getHeaders(ctx),
       body: JSON.stringify(userPayload)
     });
 
@@ -400,19 +415,13 @@ export class LedgerService {
     body: Record<string, unknown>,
     method: 'POST' | 'GET' = 'POST'
   ): Promise<T> {
-    const url = `${this.baseUrl}${path}`;
+    const url = `${this.getBaseUrl(_ctx)}${path}`;
 
     logger.debug('Canton API request', { method, path });
 
     const response = await fetch(url, {
       method,
-      headers: {
-        'Content-Type': 'application/json',
-        // No Authorization header — dpm sandbox runs without auth.
-        // Canton validates any JWT against user-management, which fails for
-        // party-scoped tokens. The correct pattern for the no-auth sandbox
-        // is to pass userId in the command body instead.
-      },
+      headers: this.getHeaders(_ctx),
       body: method === 'POST' ? JSON.stringify(body) : undefined,
     });
 
@@ -439,10 +448,9 @@ export class LedgerService {
    * transaction on the ledger.
    */
   private async getLedgerEnd(_ctx: PartyContext): Promise<number> {
-    const url = `${this.baseUrl}/v2/state/ledger-end`;
+    const url = `${this.getBaseUrl(_ctx)}/v2/state/ledger-end`;
 
-    // No Authorization header — sandbox runs without auth.
-    const response = await fetch(url, { method: 'GET' });
+    const response = await fetch(url, { method: 'GET', headers: this.getHeaders(_ctx) });
 
     if (!response.ok) {
       const body = await response.text();
@@ -464,11 +472,11 @@ export class LedgerService {
     ctx: PartyContext,
     completionOffset: number
   ): Promise<string> {
-    const url = `${this.baseUrl}/v2/updates`;
+    const url = `${this.getBaseUrl(ctx)}/v2/updates`;
 
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: this.getHeaders(ctx),
       body: JSON.stringify({
         beginExclusive: completionOffset - 1,
         endInclusive: completionOffset,
@@ -561,7 +569,7 @@ export class LedgerService {
       '/v2/commands/submit-and-wait',
       {
         commands,
-        actAs: actAs ?? [ctx.actingParty],
+        actAs: actAs ?? ctx.actAsParties ?? [ctx.actingParty],
         readAs: ctx.readAsParties,
         commandId,
         userId: 'synccap-backend',
@@ -586,14 +594,13 @@ export class LedgerService {
   ): Promise<CantonCreatedEvent[]> {
     const offset = await this.getLedgerEnd(ctx);
 
-    const url = `${this.baseUrl}/v2/state/active-contracts`;
+    const url = `${this.getBaseUrl(ctx)}/v2/state/active-contracts`;
 
     // ACS query body per Canton JSON API v2 spec.
     // filtersByParty scopes results to the acting party (Canton's privacy model).
-    // No Authorization header — sandbox runs without auth.
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: this.getHeaders(ctx),
       body: JSON.stringify({
         activeAtOffset: offset,
         eventFormat: {
@@ -683,7 +690,8 @@ export class LedgerService {
     ctx: PartyContext,
     req: CreateAssetRequest
   ): Promise<CreateAssetResult> {
-    const ownerId = await this.allocateParty(req.owner);
+    const manufacturerId = await this.allocateParty(ctx.actingParty, ctx);
+    const ownerId = await this.allocateParty(req.owner, ctx);
 
     logger.info('Creating CapacityAsset', {
       party: ctx.actingParty,
@@ -768,7 +776,7 @@ export class LedgerService {
     ctx: PartyContext,
     req: ProposeTransferRequest
   ): Promise<ProposeTransferResult> {
-    const buyerId = await this.allocateParty(req.secondaryBuyer);
+    const buyerId = await this.allocateParty(req.secondaryBuyer, ctx);
 
     logger.info('Proposing transfer (dark pool RFQ)', {
       party: ctx.actingParty,

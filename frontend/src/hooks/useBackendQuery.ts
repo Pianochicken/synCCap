@@ -54,6 +54,8 @@ export function useBackendQuery() {
       
     const ws = new WebSocket(wsUrl);
 
+    let isCleaningUp = false;
+
     ws.onopen = () => {
       console.log('WebSocket connected for real-time updates');
     };
@@ -71,11 +73,20 @@ export function useBackendQuery() {
     };
 
     ws.onerror = (err) => {
-      console.error('WebSocket error:', err);
+      if (!isCleaningUp) {
+        console.error('WebSocket error:', err);
+      }
     };
 
     ws.onclose = () => {
-      console.log('WebSocket disconnected');
+      if (!isCleaningUp) {
+        console.log('WebSocket disconnected');
+      }
+    };
+
+    return () => {
+      isCleaningUp = true;
+      ws.close();
     };
 
     // Fallback polling (every 60 seconds) just in case WebSocket disconnects silently

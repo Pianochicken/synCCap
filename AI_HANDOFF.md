@@ -144,7 +144,7 @@ JWT_SECRET=super-secret-dev-key-replace-in-production
 JWT_EXPIRY_SECONDS=3600
 PORT=3000
 NODE_ENV=development
-CORS_ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3001
+CORS_ALLOWED_ORIGINS=http://localhost:5173
 ```
 
 ### How to Run
@@ -231,6 +231,12 @@ Transitioned the frontend-to-backend communication from a 3-second HTTP polling 
 - **Frontend Reaction:** The React frontend (`useBackendQuery` hook) listens for this event and immediately triggers a background re-fetch. This completely eliminates the need for aggressive HTTP polling, reducing backend and ledger load by 90%+. A 60-second fallback polling interval is kept as a safety net against silent WebSocket disconnections.
 - **Optimistic UI:** During the API call, frontend components enter a targeted loading state (spinners, disabled buttons) to prevent double-submissions, and return to an active state instantly when the fresh data arrives via the WebSocket trigger.
 
+### Devnet Dynamic Routing (Option A)
+To support testing on the Canton Devnet without breaking the existing backend proxy architecture:
+- **Frontend Storage**: When selecting `Devnet`, the frontend fetches the Devnet M2M token and persists it in `sessionStorage`.
+- **Dynamic JWT Decoding**: The `authenticate` middleware (`backend/src/middleware/auth.ts`) intercepts token signature failures. If the token is identified as a Devnet token, it skips local signature validation and decodes the payload, setting `isDevnet = true` in the `PartyContext`.
+- **Backend Routing**: `LedgerService.ts` checks `ctx.isDevnet`. If true, it dynamically routes all Canton HTTP JSON API requests to the Devnet URL (`config.devnet.apiUrl`) and forcefully injects the `Authorization: Bearer <token>` header, acting as a transparent proxy for Devnet.
+
 ---
 
 ## Current File Tree
@@ -314,7 +320,8 @@ cd frontend && npm run dev
 
 3. **Party IDs are fully-qualified** — All calls to LedgerService that pass party names (`req.owner`, `req.secondaryBuyer`) are resolved through `allocateParty()` before being sent to Canton. Never pass raw display names to the ledger.
 
-4. **No Authorization header to Canton** — The dpm sandbox runs in no-auth mode. LedgerService uses `userId` in the command body instead of an `Authorization` header. Sending an auth header would fail JWT validation.
+4. **[x] No Authorization header to Canton** — The dpm sandbox runs in no-auth mode. LedgerService uses `userId` in the command body instead of an `Authorization` header. Sending an auth header would fail JWT validation.
+   - [x] Backend LedgerService: Update `LedgerService.ts` to use `config.devnet.apiUrl` if `isDevnet`, add `Authorization` header for Devnet, and bypass `allocateParty` for Devnet requests.
 
 5. **ACS response format** — Canton 3.5.x returns the ACS as a JSON array (not NDJSON). `LedgerService.queryActiveContracts` handles both formats.
 

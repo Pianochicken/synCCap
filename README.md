@@ -35,6 +35,15 @@ graph TD
 
 You will need three terminal windows to run the complete stack.
 
+### Step 0: Environment Setup
+Before running the backend or frontend, you must configure your environment variables.
+```bash
+# In Terminal 1 (Root directory)
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
+```
+Open both `.env` files and fill in the required `DEVNET_NAMESPACE` and `VITE_DEVNET_NAMESPACE` if you plan to test against the FiveNorth Devnet.
+
 ### Step 1: Start the Canton Ledger Sandbox
 Run the Daml sandbox to simulate the Canton Network and expose the Ledger API on port 7575.
 ```bash

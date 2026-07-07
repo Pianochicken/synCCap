@@ -91,8 +91,10 @@ export const config = {
    * Devnet Seaport Auth Configuration (Hackathon M2M Client)
    */
   devnet: {
+    apiUrl: process.env.DEVNET_API_URL || 'https://ledger-api.validator.devnet.sandbox.fivenorth.io',
     clientId: process.env.DEVNET_CLIENT_ID || '',
     clientSecret: process.env.DEVNET_CLIENT_SECRET || '',
     tokenUrl: process.env.DEVNET_TOKEN_URL || 'https://auth.sandbox.fivenorth.io/application/o/token/',
+    namespace: process.env.DEVNET_NAMESPACE || '',
   }
 } as const;

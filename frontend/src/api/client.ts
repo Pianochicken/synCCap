@@ -12,8 +12,12 @@ const client = axios.create({
 // Interceptor to attach JWT token to all requests
 client.interceptors.request.use((config) => {
   const token = sessionStorage.getItem('synccap_token');
+  const partyId = sessionStorage.getItem('synccap_partyId');
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  if (partyId && config.headers) {
+    config.headers['X-Acting-Party'] = partyId;
   }
   return config;
 });

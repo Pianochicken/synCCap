@@ -79,10 +79,23 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     try {
       if (network === 'devnet') {
         // Devnet M2M hack: We bypass the backend's local /auth/token allocation 
-        // since Devnet Auth Server provides a single token for all actions.
+        // and instead fetch the M2M devnet token.
+        const apiUrl = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:3000';
+        const res = await fetch(`${apiUrl}/auth/devnet/token`);
+        if (!res.ok) throw new Error('Failed to fetch devnet token from backend');
+        
+        const data = await res.json();
+        const devnetNamespace = import.meta.env.VITE_DEVNET_NAMESPACE || '1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8';
+        const fqdnPartyId = `${company.id}::${devnetNamespace}`;
+
+        if (data.token) {
+          sessionStorage.setItem('synccap_token', data.token);
+          sessionStorage.setItem('synccap_partyId', fqdnPartyId);
+        }
+
         // We simulate the session but all network calls will use the devnet token's identity.
         const session: AuthSession = {
-          partyId: 'validator-devnet-m2m', // Simulated identity for devnet
+          partyId: fqdnPartyId,
           displayName: company.displayName + ' (Devnet)',
           role: company.role,
         };
