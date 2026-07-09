@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Briefcase, CheckCircle, ShieldAlert } from 'lucide-react';
+import { Briefcase, CheckCircle, ShieldAlert, FileText } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { ConfirmModal } from '../ConfirmModal';
 import { ApiService } from '../../api/client';
@@ -12,7 +12,8 @@ const fmt2 = (v: string | number) =>
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export const SecondaryBuyerView: React.FC = () => {
-  const { assets, financials, transfers, locks, loadingAssets, loadingFinancials, loadingTransfers } = useBackendQuery();
+  const { assets, financials, transfers, locks, rejectedLogs, loadingAssets, loadingFinancials, loadingTransfers, loadingRejected } = useBackendQuery();
+  const myRejectedLogs = rejectedLogs ? [...rejectedLogs].reverse() : [];
 
   const [loading, setLoading] = useState(false);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
@@ -325,6 +326,93 @@ export const SecondaryBuyerView: React.FC = () => {
             })}
           </div>
         )}
+      </div>
+
+      {/* ── Transfer History ── */}
+      <div className="card">
+        <h3 className="text-lg font-bold mb-5 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+            <FileText className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+          </div>
+          Transfer History
+        </h3>
+
+        <div className="flex gap-2 mb-4 border-b border-[var(--border-color)] pb-2">
+          <button
+            className="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400"
+          >
+            Rejected ({myRejectedLogs.length})
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          {loadingRejected ? (
+            <div className="text-center text-sm py-2 text-gray-500">Loading...</div>
+          ) : myRejectedLogs.length === 0 ? (
+            <div className="text-xs text-gray-400 dark:text-gray-500 px-1 italic">No rejected transfers.</div>
+          ) : (
+            <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+              {myRejectedLogs.map((log) => {
+                const ts = log.payload.timestamp
+                  ? new Date(log.payload.timestamp).toLocaleString(undefined, {
+                      year: 'numeric', month: 'short', day: 'numeric',
+                      hour: '2-digit', minute: '2-digit', second: '2-digit'
+                    })
+                  : '—';
+                const askPrice = parseFloat(log.payload.askingPricePerWafer ?? '0');
+                const wafers = parseInt(log.payload.waferStartsPerMonth ?? '0');
+                const monthlyValue = askPrice * wafers;
+                const totalValue = monthlyValue * 12;
+
+                return (
+                  <div key={log.contractId} className="list-item-card py-4 px-4 border-l-2 border-l-red-500 bg-red-50/30 dark:bg-red-900/10">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <div className="font-mono text-sm font-bold">{log.payload.assetId}</div>
+                        <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                          Category: <span className="font-medium text-purple-400">{log.payload.technologyNode ?? 'Unknown'}</span>
+                        </div>
+                        <div className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+                          Seller:&nbsp;
+                          <PartyLabel partyId={log.payload.seller} />
+                        </div>
+                        <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Rejected: {ts}</div>
+                      </div>
+                      <span className="status-badge status-rejected">Rejected</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs mt-3 pt-3 border-t border-[var(--border-color)]">
+                      <div>
+                        <div style={{ color: 'var(--text-muted)' }}>Monthly Wafers</div>
+                        <div className="font-mono font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>
+                          {wafers.toLocaleString()}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ color: 'var(--text-muted)' }}>Asking Price</div>
+                        <div className="font-mono font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>
+                          ${fmt2(askPrice)}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ color: 'var(--text-muted)' }}>Monthly Value</div>
+                        <div className="font-mono font-medium mt-0.5 text-blue-500">
+                          ${monthlyValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ color: 'var(--text-muted)' }}>Total Value</div>
+                        <div className="font-mono font-bold mt-0.5 text-emerald-500">
+                          ${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
