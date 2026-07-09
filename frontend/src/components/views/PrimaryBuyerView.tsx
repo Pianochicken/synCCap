@@ -94,10 +94,10 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
   };
 
   const getForm = (contractId: string) =>
-    transferForms[contractId] ?? { price: '21500.00', buyer: 'SecondaryBuyer' };
+    transferForms[contractId] ?? { price: '21500.00', buyer: 'synccap-secondary-buyer-1' };
 
   const handleProposeTransfer = async (assetContractId: string) => {
-    const form = transferForms[assetContractId] || { price: '20000', buyer: 'synccap-secondary-buyer-1' };
+    const form = getForm(assetContractId);
     if (!form.price || !form.buyer) {
       toast.error('Please fill out the transfer details.');
       return;
@@ -391,7 +391,7 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
       </div>
 
       {/* ── Transfers + History ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="space-y-6">
 
         {/* Active Transfers */}
         <div className="card">
@@ -415,6 +415,14 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
                 const wafers = parseInt(rfq.payload.waferStartsPerMonth ?? '0');
                 const monthlyAsk = askPrice * wafers;
                 const totalAsk = monthlyAsk * 12;
+                const fin = financials.find((f) => f.payload.assetId === rfq.payload.assetId);
+                const originalUnitPrice = fin ? parseFloat(fin.payload.costBasisPerWafer) : 0;
+                
+                const origMonthlyValue = wafers * originalUnitPrice;
+                const transMonthlyValue = wafers * askPrice;
+                const origTotalValue = origMonthlyValue * 12;
+                const transTotalValue = transMonthlyValue * 12;
+
                 const ts = rfq.payload.timestamp
                   ? new Date(rfq.payload.timestamp).toLocaleString(undefined, {
                       year: 'numeric', month: 'short', day: 'numeric', 
@@ -429,6 +437,9 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
                         <div className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
                           {rfq.payload.assetId}
                         </div>
+                        <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                          Category: <span className="font-medium text-purple-400">{rfq.payload.technologyNode}</span>
+                        </div>
                         <div className="text-[0.65rem] uppercase tracking-wider mt-0.5" style={{ color: 'var(--text-muted)' }}>
                           Proposed to:&nbsp;<PartyLabel partyId={rfq.payload.buyer} />
                         </div>
@@ -442,23 +453,57 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
                     </div>
 
                     {/* Stats */}
-                    <div className="grid grid-cols-3 gap-2 mt-3 text-xs">
-                      <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
-                        <div style={{ color: 'var(--text-muted)' }}>Ask / Wafer</div>
-                        <div className="font-mono font-bold mt-0.5" style={{ color: 'var(--text-primary)' }}>
-                          ${fmt2(askPrice)}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs mt-4 pt-4 border-t border-[var(--border-color)] relative z-10">
+                      {/* Wafers */}
+                      <div>
+                        <div style={{ color: 'var(--text-muted)' }}>Monthly Wafers</div>
+                        <div className="font-mono font-medium mt-1 text-sm" style={{ color: 'var(--text-primary)' }}>
+                          {wafers.toLocaleString()}
                         </div>
                       </div>
-                      <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
-                        <div style={{ color: 'var(--text-muted)' }}>Monthly Ask</div>
-                        <div className="font-mono font-medium mt-0.5 text-blue-500">
-                          ${monthlyAsk.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+
+                      {/* Unit Price */}
+                      <div>
+                        <div style={{ color: 'var(--text-muted)' }} className="mb-1">Unit Price / Wafer</div>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center justify-between bg-[var(--bg-page)] px-2 py-1 rounded">
+                            <span className="text-[0.65rem] text-gray-500">Original</span>
+                            <span className="font-mono text-gray-500">${fmt2(originalUnitPrice)}</span>
+                          </div>
+                          <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded border border-blue-100 dark:border-blue-800/30">
+                            <span className="text-[0.65rem] text-blue-600 dark:text-blue-400">Asking</span>
+                            <span className="font-mono font-bold text-blue-600 dark:text-blue-400">${fmt2(askPrice)}</span>
+                          </div>
                         </div>
                       </div>
-                      <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
-                        <div style={{ color: 'var(--text-muted)' }}>Total Ask</div>
-                        <div className="font-mono font-medium mt-0.5 text-emerald-500">
-                          ${totalAsk.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+
+                      {/* Monthly Value */}
+                      <div>
+                        <div style={{ color: 'var(--text-muted)' }} className="mb-1">Monthly Value</div>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center justify-between bg-[var(--bg-page)] px-2 py-1 rounded">
+                            <span className="text-[0.65rem] text-gray-500">Original</span>
+                            <span className="font-mono text-gray-500">${fmt2(origMonthlyValue)}</span>
+                          </div>
+                          <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded border border-blue-100 dark:border-blue-800/30">
+                            <span className="text-[0.65rem] text-blue-600 dark:text-blue-400">Asking</span>
+                            <span className="font-mono font-bold text-blue-600 dark:text-blue-400">${fmt2(transMonthlyValue)}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Total Value */}
+                      <div>
+                        <div style={{ color: 'var(--text-muted)' }} className="mb-1">Total Contract Value</div>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center justify-between bg-[var(--bg-page)] px-2 py-1 rounded">
+                            <span className="text-[0.65rem] text-gray-500">Original</span>
+                            <span className="font-mono text-gray-500">${fmt2(origTotalValue)}</span>
+                          </div>
+                          <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-900/20 px-2 py-1 rounded border border-emerald-100 dark:border-emerald-800/30">
+                            <span className="text-[0.65rem] text-emerald-600 dark:text-emerald-400">Asking</span>
+                            <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">${fmt2(transTotalValue)}</span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -534,8 +579,15 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
                 <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                   {subLeasedAssets.map((asset) => {
                     const fin = financials.find((f) => f.payload.assetId === asset.payload.assetId);
-                    const unitPrice = fin ? parseFloat(fin.payload.costBasisPerWafer) : 0;
+                    const originalUnitPrice = fin ? parseFloat(fin.payload.costBasisPerWafer) : 0;
+                    const transferUnitPrice = parseFloat(asset.payload.costBasisPerWafer ?? '0');
                     const wafers = parseInt(asset.payload.waferStartsPerMonth) || 0;
+                    const category = asset.payload.technologyNode ?? 'Unknown';
+
+                    const origMonthlyValue = wafers * originalUnitPrice;
+                    const transMonthlyValue = wafers * transferUnitPrice;
+                    const origTotalValue = origMonthlyValue * 12;
+                    const transTotalValue = transMonthlyValue * 12;
 
                     const ts = asset.payload.timestamp
                       ? new Date(asset.payload.timestamp).toLocaleString(undefined, {
@@ -543,45 +595,75 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
                           hour: '2-digit', minute: '2-digit', second: '2-digit'
                         })
                       : '—';
-                    const monthlyValue = wafers * unitPrice;
-                    const totalValue = monthlyValue * 12;
 
                     return (
-                      <div key={asset.contractId} className="list-item-card py-3 px-3 border-l-2 border-l-gray-300 dark:border-l-gray-600">
+                      <div key={asset.contractId} className="list-item-card py-4 px-4 border-l-2 border-l-emerald-400 bg-emerald-50/30 dark:bg-emerald-900/10">
                         <div className="flex justify-between items-start mb-2">
                           <div>
                             <div className="font-mono text-sm font-bold">{asset.payload.assetId}</div>
-                            <div className="text-[0.6rem] mt-0.5" style={{ color: 'var(--text-muted)' }}>Transferred: {ts}</div>
+                            <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                              Category: <span className="font-medium text-purple-400">{category}</span>
+                            </div>
+                            <div className="text-[0.65rem] mt-0.5" style={{ color: 'var(--text-muted)' }}>Transferred: {ts}</div>
                             <div className="text-[0.65rem] uppercase tracking-wider mt-1 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
                               Buyer:&nbsp;
                               <PartyLabel partyId={asset.payload.owner} />
                             </div>
                           </div>
-                          <span className="status-badge status-transferred">Transferred</span>
+                          <span className="status-badge status-active">Transferred</span>
                         </div>
-                        <div className="grid grid-cols-2 gap-2 text-xs mt-2">
-                          <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
-                            <div style={{ color: 'var(--text-muted)' }}>Node / Monthly Wafers</div>
-                            <div className="font-mono font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>
-                              {asset.payload.technologyNode} / {wafers.toLocaleString()}
+
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs mt-4 pt-4 border-t border-[var(--border-color)]">
+                          {/* Wafers */}
+                          <div>
+                            <div style={{ color: 'var(--text-muted)' }}>Monthly Wafers</div>
+                            <div className="font-mono font-medium mt-1 text-sm" style={{ color: 'var(--text-primary)' }}>
+                              {wafers.toLocaleString()}
                             </div>
                           </div>
-                          <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
-                            <div style={{ color: 'var(--text-muted)' }}>Unit Price / Wafer</div>
-                            <div className="font-mono font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>
-                              ${fmt2(unitPrice)}
+
+                          {/* Unit Price */}
+                          <div>
+                            <div style={{ color: 'var(--text-muted)' }} className="mb-1">Unit Price / Wafer</div>
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center justify-between bg-[var(--bg-page)] px-2 py-1 rounded">
+                                <span className="text-[0.65rem] text-gray-500">Original</span>
+                                <span className="font-mono text-gray-500">${fmt2(originalUnitPrice)}</span>
+                              </div>
+                              <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded border border-blue-100 dark:border-blue-800/30">
+                                <span className="text-[0.65rem] text-blue-600 dark:text-blue-400">Transfer</span>
+                                <span className="font-mono font-bold text-blue-600 dark:text-blue-400">${fmt2(transferUnitPrice)}</span>
+                              </div>
                             </div>
                           </div>
-                          <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
-                            <div style={{ color: 'var(--text-muted)' }}>Monthly Value</div>
-                            <div className="font-mono font-medium mt-0.5 text-blue-500">
-                              ${fmt2(monthlyValue)}
+
+                          {/* Monthly Value */}
+                          <div>
+                            <div style={{ color: 'var(--text-muted)' }} className="mb-1">Monthly Value</div>
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center justify-between bg-[var(--bg-page)] px-2 py-1 rounded">
+                                <span className="text-[0.65rem] text-gray-500">Original</span>
+                                <span className="font-mono text-gray-500">${fmt2(origMonthlyValue)}</span>
+                              </div>
+                              <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded border border-blue-100 dark:border-blue-800/30">
+                                <span className="text-[0.65rem] text-blue-600 dark:text-blue-400">Transfer</span>
+                                <span className="font-mono font-bold text-blue-600 dark:text-blue-400">${fmt2(transMonthlyValue)}</span>
+                              </div>
                             </div>
                           </div>
-                          <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
-                            <div style={{ color: 'var(--text-muted)' }}>Total Contract Value</div>
-                            <div className="font-mono font-bold mt-0.5 text-emerald-500">
-                              ${fmt2(totalValue)}
+
+                          {/* Total Value */}
+                          <div>
+                            <div style={{ color: 'var(--text-muted)' }} className="mb-1">Total Contract Value</div>
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center justify-between bg-[var(--bg-page)] px-2 py-1 rounded">
+                                <span className="text-[0.65rem] text-gray-500">Original</span>
+                                <span className="font-mono text-gray-500">${fmt2(origTotalValue)}</span>
+                              </div>
+                              <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-900/20 px-2 py-1 rounded border border-emerald-100 dark:border-emerald-800/30">
+                                <span className="text-[0.65rem] text-emerald-600 dark:text-emerald-400">Transfer</span>
+                                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">${fmt2(transTotalValue)}</span>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -603,23 +685,33 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
               ) : (
                 <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                   {sortedRejectedLogs.map((log) => {
+                    const fin = financials.find((f) => f.payload.assetId === log.payload.assetId);
+                    const originalUnitPrice = fin ? parseFloat(fin.payload.costBasisPerWafer) : 0;
+                    const transferUnitPrice = parseFloat(log.payload.askingPricePerWafer ?? '0');
+                    const wafers = parseInt(log.payload.waferStartsPerMonth ?? '0');
+                    const category = fin ? fin.payload.technologyNode : 'Unknown';
+                    
+                    const origMonthlyValue = wafers * originalUnitPrice;
+                    const transMonthlyValue = wafers * transferUnitPrice;
+                    const origTotalValue = origMonthlyValue * 12;
+                    const transTotalValue = transMonthlyValue * 12;
+
                     const ts = log.payload.timestamp
                       ? new Date(log.payload.timestamp).toLocaleString(undefined, {
                           year: 'numeric', month: 'short', day: 'numeric', 
                           hour: '2-digit', minute: '2-digit', second: '2-digit'
                         })
                       : '—';
-                    const askPrice = parseFloat(log.payload.askingPricePerWafer ?? '0');
-                    const wafers = parseInt(log.payload.waferStartsPerMonth ?? '0');
-                    const monthlyValue = wafers * askPrice;
-                    const totalValue = monthlyValue * 12;
 
                     return (
-                      <div key={log.contractId} className="list-item-card py-3 px-3 border-l-2 border-l-red-400 bg-red-50/30 dark:bg-red-900/10">
+                      <div key={log.contractId} className="list-item-card py-4 px-4 border-l-2 border-l-red-400 bg-red-50/30 dark:bg-red-900/10">
                         <div className="flex justify-between items-start mb-2">
                           <div>
                             <div className="font-mono text-sm font-bold">{log.payload.assetId}</div>
-                            <div className="text-[0.6rem] mt-0.5" style={{ color: 'var(--text-muted)' }}>Rejected: {ts}</div>
+                            <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                              Category: <span className="font-medium text-purple-400">{category}</span>
+                            </div>
+                            <div className="text-[0.65rem] mt-0.5" style={{ color: 'var(--text-muted)' }}>Rejected: {ts}</div>
                             <div className="text-[0.65rem] uppercase tracking-wider mt-1 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
                               Buyer:&nbsp;
                               <PartyLabel partyId={log.payload.buyer} />
@@ -639,29 +731,58 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
                             </button>
                           )}
                         </div>
-                        <div className="grid grid-cols-2 gap-2 text-xs mt-2">
-                          <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
+
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs mt-4 pt-4 border-t border-[var(--border-color)]">
+                          {/* Wafers */}
+                          <div>
                             <div style={{ color: 'var(--text-muted)' }}>Monthly Wafers</div>
-                            <div className="font-mono font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>
+                            <div className="font-mono font-medium mt-1 text-sm" style={{ color: 'var(--text-primary)' }}>
                               {wafers.toLocaleString()}
                             </div>
                           </div>
-                          <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
-                            <div style={{ color: 'var(--text-muted)' }}>Asking Unit Price</div>
-                            <div className="font-mono font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>
-                              ${fmt2(askPrice)}
+
+                          {/* Unit Price */}
+                          <div>
+                            <div style={{ color: 'var(--text-muted)' }} className="mb-1">Unit Price / Wafer</div>
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center justify-between bg-[var(--bg-page)] px-2 py-1 rounded">
+                                <span className="text-[0.65rem] text-gray-500">Original</span>
+                                <span className="font-mono text-gray-500">${fmt2(originalUnitPrice)}</span>
+                              </div>
+                              <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded border border-blue-100 dark:border-blue-800/30">
+                                <span className="text-[0.65rem] text-blue-600 dark:text-blue-400">Asking</span>
+                                <span className="font-mono font-bold text-blue-600 dark:text-blue-400">${fmt2(transferUnitPrice)}</span>
+                              </div>
                             </div>
                           </div>
-                          <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
-                            <div style={{ color: 'var(--text-muted)' }}>Monthly Value</div>
-                            <div className="font-mono font-medium mt-0.5 text-blue-500">
-                              ${fmt2(monthlyValue)}
+
+                          {/* Monthly Value */}
+                          <div>
+                            <div style={{ color: 'var(--text-muted)' }} className="mb-1">Monthly Value</div>
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center justify-between bg-[var(--bg-page)] px-2 py-1 rounded">
+                                <span className="text-[0.65rem] text-gray-500">Original</span>
+                                <span className="font-mono text-gray-500">${fmt2(origMonthlyValue)}</span>
+                              </div>
+                              <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded border border-blue-100 dark:border-blue-800/30">
+                                <span className="text-[0.65rem] text-blue-600 dark:text-blue-400">Asking</span>
+                                <span className="font-mono font-bold text-blue-600 dark:text-blue-400">${fmt2(transMonthlyValue)}</span>
+                              </div>
                             </div>
                           </div>
-                          <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
-                            <div style={{ color: 'var(--text-muted)' }}>Total Contract Value</div>
-                            <div className="font-mono font-bold mt-0.5 text-emerald-500">
-                              ${fmt2(totalValue)}
+
+                          {/* Total Value */}
+                          <div>
+                            <div style={{ color: 'var(--text-muted)' }} className="mb-1">Total Contract Value</div>
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center justify-between bg-[var(--bg-page)] px-2 py-1 rounded">
+                                <span className="text-[0.65rem] text-gray-500">Original</span>
+                                <span className="font-mono text-gray-500">${fmt2(origTotalValue)}</span>
+                              </div>
+                              <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-900/20 px-2 py-1 rounded border border-emerald-100 dark:border-emerald-800/30">
+                                <span className="text-[0.65rem] text-emerald-600 dark:text-emerald-400">Asking</span>
+                                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">${fmt2(transTotalValue)}</span>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -681,55 +802,94 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
               ) : withdrawnLogs.length === 0 ? (
                 <div className="text-xs text-gray-400 dark:text-gray-500 px-1 italic">No withdrawn offers.</div>
               ) : (
-                <div className="space-y-2 opacity-70 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                   {sortedWithdrawnLogs.map((log) => {
+                    const fin = financials.find((f) => f.payload.assetId === log.payload.assetId);
+                    const originalUnitPrice = fin ? parseFloat(fin.payload.costBasisPerWafer) : 0;
+                    const transferUnitPrice = parseFloat(log.payload.askingPricePerWafer ?? '0');
+                    const wafers = parseInt(log.payload.waferStartsPerMonth ?? '0');
+                    const category = fin ? fin.payload.technologyNode : 'Unknown';
+
+                    const origMonthlyValue = wafers * originalUnitPrice;
+                    const transMonthlyValue = wafers * transferUnitPrice;
+                    const origTotalValue = origMonthlyValue * 12;
+                    const transTotalValue = transMonthlyValue * 12;
+
                     const ts = log.payload.timestamp
                       ? new Date(log.payload.timestamp).toLocaleString(undefined, {
                           year: 'numeric', month: 'short', day: 'numeric', 
                           hour: '2-digit', minute: '2-digit', second: '2-digit'
                         })
                       : '—';
-                    const askPrice = parseFloat(log.payload.askingPricePerWafer ?? '0');
-                    const wafers = parseInt(log.payload.waferStartsPerMonth ?? '0');
-                    const monthlyValue = wafers * askPrice;
-                    const totalValue = monthlyValue * 12;
 
                     return (
-                      <div key={log.contractId} className="list-item-card py-3 px-3 border-l-2 border-l-gray-300">
+                      <div key={log.contractId} className="list-item-card py-4 px-4 border-l-2 border-l-orange-400 bg-orange-50/30 dark:bg-orange-900/10">
                         <div className="flex justify-between items-start mb-2">
                           <div>
                             <div className="font-mono text-sm font-bold">{log.payload.assetId}</div>
-                            <div className="text-[0.6rem] mt-0.5" style={{ color: 'var(--text-muted)' }}>Withdrawn: {ts}</div>
+                            <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                              Category: <span className="font-medium text-purple-400">{category}</span>
+                            </div>
+                            <div className="text-[0.65rem] mt-0.5" style={{ color: 'var(--text-muted)' }}>Withdrawn: {ts}</div>
                             <div className="text-[0.65rem] uppercase tracking-wider mt-1 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
                               Target Buyer:&nbsp;
                               <PartyLabel partyId={log.payload.buyer} />
                             </div>
                           </div>
-                          <span className="status-badge status-inactive">Withdrawn</span>
+                          <span className="status-badge status-withdrawn">Withdrawn</span>
                         </div>
-                        <div className="grid grid-cols-2 gap-2 text-xs mt-2">
-                          <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
+
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs mt-4 pt-4 border-t border-[var(--border-color)]">
+                          {/* Wafers */}
+                          <div>
                             <div style={{ color: 'var(--text-muted)' }}>Monthly Wafers</div>
-                            <div className="font-mono font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>
+                            <div className="font-mono font-medium mt-1 text-sm" style={{ color: 'var(--text-primary)' }}>
                               {wafers.toLocaleString()}
                             </div>
                           </div>
-                          <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
-                            <div style={{ color: 'var(--text-muted)' }}>Asking Unit Price</div>
-                            <div className="font-mono font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>
-                              ${fmt2(askPrice)}
+
+                          {/* Unit Price */}
+                          <div>
+                            <div style={{ color: 'var(--text-muted)' }} className="mb-1">Unit Price / Wafer</div>
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center justify-between bg-[var(--bg-page)] px-2 py-1 rounded">
+                                <span className="text-[0.65rem] text-gray-500">Original</span>
+                                <span className="font-mono text-gray-500">${fmt2(originalUnitPrice)}</span>
+                              </div>
+                              <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded border border-blue-100 dark:border-blue-800/30">
+                                <span className="text-[0.65rem] text-blue-600 dark:text-blue-400">Asking</span>
+                                <span className="font-mono font-bold text-blue-600 dark:text-blue-400">${fmt2(transferUnitPrice)}</span>
+                              </div>
                             </div>
                           </div>
-                          <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
-                            <div style={{ color: 'var(--text-muted)' }}>Monthly Value</div>
-                            <div className="font-mono font-medium mt-0.5 text-blue-500">
-                              ${fmt2(monthlyValue)}
+
+                          {/* Monthly Value */}
+                          <div>
+                            <div style={{ color: 'var(--text-muted)' }} className="mb-1">Monthly Value</div>
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center justify-between bg-[var(--bg-page)] px-2 py-1 rounded">
+                                <span className="text-[0.65rem] text-gray-500">Original</span>
+                                <span className="font-mono text-gray-500">${fmt2(origMonthlyValue)}</span>
+                              </div>
+                              <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded border border-blue-100 dark:border-blue-800/30">
+                                <span className="text-[0.65rem] text-blue-600 dark:text-blue-400">Asking</span>
+                                <span className="font-mono font-bold text-blue-600 dark:text-blue-400">${fmt2(transMonthlyValue)}</span>
+                              </div>
                             </div>
                           </div>
-                          <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
-                            <div style={{ color: 'var(--text-muted)' }}>Total Contract Value</div>
-                            <div className="font-mono font-bold mt-0.5 text-emerald-500">
-                              ${fmt2(totalValue)}
+
+                          {/* Total Value */}
+                          <div>
+                            <div style={{ color: 'var(--text-muted)' }} className="mb-1">Total Contract Value</div>
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center justify-between bg-[var(--bg-page)] px-2 py-1 rounded">
+                                <span className="text-[0.65rem] text-gray-500">Original</span>
+                                <span className="font-mono text-gray-500">${fmt2(origTotalValue)}</span>
+                              </div>
+                              <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-900/20 px-2 py-1 rounded border border-emerald-100 dark:border-emerald-800/30">
+                                <span className="text-[0.65rem] text-emerald-600 dark:text-emerald-400">Asking</span>
+                                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">${fmt2(transTotalValue)}</span>
+                              </div>
                             </div>
                           </div>
                         </div>
