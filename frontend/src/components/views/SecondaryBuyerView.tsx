@@ -274,7 +274,7 @@ export const SecondaryBuyerView: React.FC = () => {
             You have not acquired any capacity assets yet.
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
             {[...assets].reverse().map((asset) => {
               const fin = financials.find((f) => f.payload.assetId === asset.payload.assetId);
               const acquisitionPrice = fin ? parseFloat(fin.payload.costBasisPerWafer) : 0;

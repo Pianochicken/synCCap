@@ -51,7 +51,7 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
   const [selectedPenaltyAmount, setSelectedPenaltyAmount] = useState<number>(0);
 
   const portfolioAssets = assets.filter(
-    (a) => a.payload.status !== 'Transferred' && a.payload.status !== 'Sub-Leased' && a.payload.status !== 'Penalized',
+    (a) => a.payload.status !== 'Transferred' && a.payload.status !== 'Sub-Leased' && a.payload.status !== 'Penalized' && a.payload.status !== 'PendingTransfer',
   ).reverse();
   const subLeasedAssets = assets.filter((a) => a.payload.status === 'Transferred' || a.payload.status === 'Sub-Leased').reverse();
   const sortedRejectedLogs = [...rejectedLogs].reverse();
