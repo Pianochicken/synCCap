@@ -1,5 +1,22 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ApiService } from '../api/client';
+import { useDemoSessionContext } from '../context/DemoSessionContext';
+
+/**
+ * Determines whether to apply the demo session filter.
+ * Only active in Devnet mode. In Local Sandbox, Canton provides
+ * physical isolation per party — no UI filtering needed.
+ */
+function isDevnetMode(): boolean {
+  const stored = sessionStorage.getItem('synccap_session');
+  if (!stored) return false;
+  try {
+    const session = JSON.parse(stored);
+    return Boolean(session?.demoSessionId);
+  } catch {
+    return false;
+  }
+}
 
 export function useBackendQuery() {
   const [assets, setAssets] = useState<any[]>([]);
@@ -10,6 +27,25 @@ export function useBackendQuery() {
   const [rejectedLogs, setRejectedLogs] = useState<any[]>([]);
   const [withdrawnLogs, setWithdrawnLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const { demoSessionId } = useDemoSessionContext();
+
+  /**
+   * Filters data by the demo session ID when in Devnet mode.
+   * Contracts created in this session have their assetId suffixed with _SID_<sessionId>.
+   * In Local Sandbox mode, all data is returned unfiltered.
+   */
+  const filterBySession = useCallback(<T extends { payload?: any }>(
+    items: T[],
+    field: string = 'assetId'
+  ): T[] => {
+    if (!isDevnetMode() || !demoSessionId) return items;
+    const suffix = `_SID_${demoSessionId}`;
+    return items.filter((item) => {
+      const value = item?.payload?.[field] as string | undefined;
+      return value?.includes(suffix) ?? false;
+    });
+  }, [demoSessionId]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -31,19 +67,19 @@ export function useBackendQuery() {
         ApiService.getWithdrawnLogs ? ApiService.getWithdrawnLogs() : Promise.resolve([])
       ]);
 
-      setAssets(assetsData);
-      setFinancials(financialsData);
-      setTransfers(transfersData);
-      setLocks(locksData);
-      setPenalties(penaltiesData);
-      setRejectedLogs(rejectedData);
-      setWithdrawnLogs(withdrawnData);
+      setAssets(filterBySession(assetsData));
+      setFinancials(filterBySession(financialsData));
+      setTransfers(filterBySession(transfersData));
+      setLocks(filterBySession(locksData));
+      setPenalties(filterBySession(penaltiesData, 'penaltyId'));
+      setRejectedLogs(filterBySession(rejectedData));
+      setWithdrawnLogs(filterBySession(withdrawnData));
     } catch (err) {
       console.error('Failed to fetch data from backend:', err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filterBySession]);
 
   useEffect(() => {
     fetchData();
@@ -84,15 +120,11 @@ export function useBackendQuery() {
       }
     };
 
+    // Fallback polling (every 60 seconds) in case WebSocket disconnects silently
+    const interval = setInterval(fetchData, 60000);
+
     return () => {
       isCleaningUp = true;
-      ws.close();
-    };
-
-    // Fallback polling (every 60 seconds) just in case WebSocket disconnects silently
-    const interval = setInterval(fetchData, 60000);
-    
-    return () => {
       clearInterval(interval);
       ws.close();
     };

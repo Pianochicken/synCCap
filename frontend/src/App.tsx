@@ -21,6 +21,7 @@ import { Toaster } from 'react-hot-toast';
 import type { AuthSession } from './types/AuthSession';
 import { NetworkProvider } from './context/NetworkContext';
 import { LedgerProvider } from './components/LedgerProvider';
+import { DemoSessionProvider } from './context/DemoSessionContext';
 
 const SESSION_KEY = 'synccap_session';
 
@@ -49,8 +50,9 @@ function App() {
   };
 
   return (
-    <NetworkProvider>
-      <Toaster position="bottom-right" toastOptions={{ className: 'text-sm shadow-xl' }} />
+    <DemoSessionProvider>
+      <NetworkProvider>
+        <Toaster position="bottom-right" toastOptions={{ className: 'text-sm shadow-xl' }} />
       
 
       <Routes>
@@ -70,7 +72,8 @@ function App() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </NetworkProvider>
+      </NetworkProvider>
+    </DemoSessionProvider>
   );
 }
 

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { LogOut, Server, Globe, Zap } from 'lucide-react';
+import { LogOut, Server, Globe, Zap, RefreshCw, Copy, Check } from 'lucide-react';
 import { useNetwork } from '../context/NetworkContext';
+import { useDemoSessionContext } from '../context/DemoSessionContext';
 import { ThemeToggle } from './ThemeToggle';
 import { ManufacturerView } from './views/ManufacturerView';
 import { PrimaryBuyerView } from './views/PrimaryBuyerView';
@@ -33,8 +34,18 @@ interface DashboardProps {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ session, onLogout }) => {
+  const { demoSessionId, resetSession } = useDemoSessionContext();
+  const [copied, setCopied] = useState(false);
+  const isDevnetSession = Boolean(session.demoSessionId);
   const roleColor = ROLE_COLORS[session.role];
   const { network } = useNetwork();
+
+  const handleCopyLink = () => {
+    const url = `${window.location.origin}/dashboard?session=${demoSessionId}`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div
@@ -84,6 +95,36 @@ export const Dashboard: React.FC<DashboardProps> = ({ session, onLogout }) => {
                 </div>
               </div>
             </div>
+
+            {/* Demo Session ID chip (Devnet only) */}
+            {isDevnetSession && (
+              <div
+                className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs"
+                style={{
+                  background: 'rgba(16,217,126,0.06)',
+                  borderColor: 'rgba(16,217,126,0.25)',
+                  color: 'var(--text-muted)',
+                }}
+              >
+                <div className="w-1.5 h-1.5 rounded-full bg-[#10d97e] animate-pulse" />
+                <span className="font-mono tracking-wider">#{demoSessionId}</span>
+                <button
+                  onClick={handleCopyLink}
+                  title="Copy session invite link"
+                  className="ml-1 hover:opacity-70 transition-opacity"
+                >
+                  {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3 h-3" />}
+                </button>
+                <div className="w-px h-3 bg-green-500/20 mx-1" />
+                <button
+                  onClick={resetSession}
+                  title="Reset demo session"
+                  className="hover:opacity-70 transition-opacity"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                </button>
+              </div>
+            )}
 
             {/* Logout */}
             <button onClick={onLogout} className="btn-ghost text-sm">

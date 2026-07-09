@@ -22,6 +22,12 @@ export interface AuthSession {
   displayName: string;
   /** The role this company plays on the platform */
   role: PartyRole;
+  /**
+   * Demo Session ID (Devnet only). An 8-char unique ID stored in localStorage
+   * used to filter contracts on the public demo URL, preventing data collision
+   * between multiple simultaneous visitors sharing the same Canton party.
+   */
+  demoSessionId?: string;
 }
 
 /** Pre-registered companies on the synCCap platform (Canton sandbox). */

@@ -1,6 +1,6 @@
 # synCCap — AI Handoff Document
 
-> **Last Updated:** Phase 4 Complete (2026-06-25)
+> **Last Updated:** Phase 6 In Progress (2026-07-09)
 > **Project:** synCCap — Universal Capacity Tokenization & Privacy-Preserving Settlement
 > **Hackathon:** Canton Network Hackathon
 > **Demo Vertical:** High-End Semiconductor Foundry Capacity (RWA)
@@ -17,6 +17,8 @@
 | **Phase 3** | React Frontend (Vite + Tailwind + TypeScript) | ✅ Complete |
 | **Phase 4** | Demo Polish — README, DEMO_SCRIPT, UI Landing Page | ✅ Complete |
 | **Phase 5** | Real-Time Architecture (WebSockets & Optimistic UI) | ✅ Complete |
+| **Phase 5.5** | Devnet Integration & Bug Fixes | ✅ Complete |
+| **Phase 6** | Enterprise Login UX Redesign + Demo Session Isolation | ✅ Complete |
 
 ---
 
@@ -311,6 +313,52 @@ cd frontend && npm run dev
 ```
 
 ---
+
+---
+
+## Phase 5.5 Summary: Devnet Integration & Bug Fixes ✅
+
+### What Was Done
+
+| Fix | Details |
+|:----|:--------|
+| **Devnet API URL corrected** | `config.devnet.apiUrl` hardcoded fallback now points to `https://ledger-api.validator.devnet.sandbox.fivenorth.io` (with `.sandbox`). Removed stale `DEVNET_LEDGER_API_URL` from `.env`. |
+| **Canton 401 error mapping** | `mapLedgerError` in `backend/src/routes/api.ts` now correctly maps Canton `(401)` / `UNAUTHENTICATED` errors to HTTP 401, triggering the Axios auto-logout interceptor in the frontend. Previously these were returned as 500. |
+| **403 vs 401 not mixed** | The check for 403 uses `(403)` / `PERMISSION_DENIED` — completely separate from the new 401 check, preventing misidentification. |
+| **Devnet Party rights confirmed** | `validator-devnet-m2m` User "6" has 710+ `CanActAs` rights on `devnet.sandbox`, including `5nsandbox-devnet-2::...`. Our three `synccap-*` parties are NOT yet authorized — awaiting FiveNorth to grant rights. |
+| **Devnet Party allocation blocked** | The `POST /v2/parties/allocate` endpoint returns `405 Method Not Allowed` on Devnet — FiveNorth locks this to prevent abuse. Cannot self-provision parties programmatically. |
+| **Temporary test scripts deleted** | `check-rights.mjs`, `query-contracts.mjs`, `allocate-party.mjs` etc. were removed from root. These were debugging artifacts, not part of the project. |
+
+---
+
+## Phase 6 Summary: Enterprise Login UX Redesign + Demo Session Isolation ✅
+
+### What Was Built
+
+#### Redesigned Login Page (`frontend/src/components/LoginPage.tsx`)
+Complete rewrite to a professional B2B SaaS Left-Right split layout:
+- **Left panel (45%)**: Dark gradient brand panel with ambient glow orbs, grid pattern overlay, tech feature highlights (Sub-Transaction Privacy, Atomic Settlement, RWA Tokenization, Real-Time Ledger Events), and hackathon attribution footer.
+- **Right panel (55%)**: Standard enterprise login UI (Work Email + Password + Show/Hide toggle + Sign In button + Enterprise SSO button) — these are decorative placeholders for production IAM. Below a "Hackathon Demo Quick Access" divider, the three role buttons (Manufacturer / Primary Buyer / Secondary Buyer) allow instant demo login. In Devnet mode, a Session ID badge with a Reset button is shown at the bottom.
+
+#### Demo Session Isolation (Devnet-only)
+| File | Purpose |
+|:-----|:--------|
+| `frontend/src/hooks/useDemoSession.ts` | Generates/persists 8-char `demoSessionId` in `localStorage`. Provides `getOrCreateSessionId()`, `clearSessionId()`, `sessionSuffix()`, `belongsToSession()`. |
+| `frontend/src/context/DemoSessionContext.tsx` | Global React context exposing `demoSessionId` and `resetSession()` to the entire component tree. |
+| `frontend/src/App.tsx` | Wrapped with `DemoSessionProvider` (outermost provider, wraps `NetworkProvider`). |
+| `frontend/src/types/AuthSession.ts` | Added optional `demoSessionId?: string` field to `AuthSession`. Populated on Devnet login. |
+| `frontend/src/hooks/useBackendQuery.ts` | In Devnet mode (detected via `session.demoSessionId`), all data arrays are filtered by `_SID_<sessionId>` suffix in the `assetId` field before being returned to components. Sandbox mode: unfiltered. |
+| `frontend/src/components/Dashboard.tsx` | Header now shows a green pulsing Session ID chip (`#<sessionId>`) with a Reset button when in Devnet mode. |
+
+### Key Design Principles
+- **Devnet-only**: Session filter only activates when `session.demoSessionId` is set (Devnet mode). Local Sandbox has physical Canton isolation.
+- **Frontend-only**: Daml contracts and backend API are untouched.
+- **`localStorage` persistence**: Session ID survives tab close, so reviewers can return the next day.
+- **`resetSession()` clears filter**: Generates a new ID, giving a fresh workspace.
+- **Asset creation**: When creating assets in Devnet mode, the `assetId` should include `_SID_<sessionId>` suffix. This is enforced at the UI layer when submitting the form.
+
+### Local Sandbox Impact
+**None.** These changes are transparent to Local Sandbox operation. The three demo buttons work identically. Session filter is not applied in Sandbox mode.
 
 ## Known Gotchas for Future Development
 
