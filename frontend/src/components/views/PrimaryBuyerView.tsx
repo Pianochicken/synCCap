@@ -224,57 +224,47 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
                 <div key={asset.contractId} className="list-item-card flex flex-col md:flex-row gap-6 items-start">
                   {/* Asset Details */}
                   <div className="flex-1 min-w-[280px]">
-                    <div className="flex items-center gap-2 mb-3">
+                    <div className="flex items-center gap-2 mb-1">
                       <div className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>
                         {asset.payload.assetId}
                       </div>
                       {statusBadge(asset.payload.status)}
                     </div>
+                    <div className="text-xs mb-3" style={{ color: 'var(--text-secondary)' }}>
+                      Category: <span className="font-medium text-purple-400">{asset.payload.technologyNode}</span>
+                    </div>
 
                     {/* Timestamp */}
-                    <div className="text-[0.65rem] mb-3" style={{ color: 'var(--text-muted)' }}>
+                    <div className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
                       Issued: {ts}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div className="bg-[var(--bg-page)] p-2.5 rounded-lg border border-[var(--border-color)]">
-                        <div style={{ color: 'var(--text-muted)' }}>Category</div>
-                        <div className="font-mono font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>
-                          {asset.payload.technologyNode}
-                        </div>
-                      </div>
-                      <div className="bg-[var(--bg-page)] p-2.5 rounded-lg border border-[var(--border-color)]">
+                    <div className="grid grid-cols-2 gap-2 text-xs mt-4 pt-4 border-t border-[var(--border-color)]">
+                      <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
                         <div style={{ color: 'var(--text-muted)' }}>Monthly Wafers</div>
                         <div className="font-mono font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>
                           {wafers.toLocaleString()}
                         </div>
                       </div>
-                      <div className="bg-[var(--bg-page)] p-2.5 rounded-lg border border-[var(--border-color)]">
-                        <div style={{ color: 'var(--text-muted)' }}>Unit Price / Wafer</div>
+                      <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)] relative overflow-hidden group">
+                        <div className="absolute top-1.5 right-1.5 text-purple-500/30 group-hover:text-purple-500/70 transition-colors">
+                          <Lock className="w-3 h-3" />
+                        </div>
+                        <div style={{ color: 'var(--text-muted)' }}>Original Unit Price</div>
                         <div className="font-mono font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>
                           ${fmt2(unitPrice)}
                         </div>
                       </div>
-                      <div className="bg-[var(--bg-page)] p-2.5 rounded-lg border border-[var(--border-color)]">
+                      <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
                         <div style={{ color: 'var(--text-muted)' }}>Monthly Value</div>
                         <div className="font-mono font-medium mt-0.5 text-blue-500">
                           ${monthlyValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
                       </div>
-                      <div className="bg-[var(--bg-page)] p-2.5 rounded-lg border border-[var(--border-color)] col-span-2 relative overflow-hidden group">
-                        <div className="absolute top-2 right-2 text-purple-500/30 group-hover:text-purple-500/70 transition-colors">
-                          <Lock className="w-4 h-4" />
-                        </div>
-                        <div style={{ color: 'var(--text-muted)' }}>
-                          Original Unit Price <span className="text-purple-400 text-[0.6rem]">(private)</span>
-                        </div>
-                        <div className="flex items-baseline gap-3 mt-0.5">
-                          <span className="font-mono font-bold" style={{ color: 'var(--text-primary)' }}>
-                            ${fmt2(unitPrice)}
-                          </span>
-                          <span className="text-xs text-emerald-500 font-semibold">
-                            Total: ${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </span>
+                      <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
+                        <div style={{ color: 'var(--text-muted)' }}>Total Contract Value</div>
+                        <div className="font-mono font-bold mt-0.5 text-emerald-500">
+                          ${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
                       </div>
                     </div>
@@ -399,7 +389,7 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
             <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-blue-100 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800">
               <TrendingUp className="w-4 h-4 text-blue-600 dark:text-blue-400" />
             </div>
-            Active Transfers (Pending)
+            Active Transfers
           </h3>
 
           {loadingTransfers ? (
@@ -440,10 +430,10 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
                         <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
                           Category: <span className="font-medium text-purple-400">{rfq.payload.technologyNode}</span>
                         </div>
-                        <div className="text-[0.65rem] uppercase tracking-wider mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                        <div className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
                           Proposed to:&nbsp;<PartyLabel partyId={rfq.payload.buyer} />
                         </div>
-                        <div className="text-[0.6rem] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                        <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
                           Submitted: {ts}
                         </div>
                       </div>
@@ -604,11 +594,11 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
                             <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
                               Category: <span className="font-medium text-purple-400">{category}</span>
                             </div>
-                            <div className="text-[0.65rem] mt-0.5" style={{ color: 'var(--text-muted)' }}>Transferred: {ts}</div>
-                            <div className="text-[0.65rem] uppercase tracking-wider mt-1 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+                            <div className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
                               Buyer:&nbsp;
                               <PartyLabel partyId={asset.payload.owner} />
                             </div>
+                            <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Transferred: {ts}</div>
                           </div>
                           <span className="status-badge status-active">Transferred</span>
                         </div>
@@ -711,11 +701,11 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
                             <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
                               Category: <span className="font-medium text-purple-400">{category}</span>
                             </div>
-                            <div className="text-[0.65rem] mt-0.5" style={{ color: 'var(--text-muted)' }}>Rejected: {ts}</div>
-                            <div className="text-[0.65rem] uppercase tracking-wider mt-1 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+                            <div className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
                               Buyer:&nbsp;
                               <PartyLabel partyId={log.payload.buyer} />
                             </div>
+                            <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Rejected: {ts}</div>
                           </div>
                           {log.payload.isReclaimed ? (
                             <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
@@ -830,11 +820,11 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
                             <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
                               Category: <span className="font-medium text-purple-400">{category}</span>
                             </div>
-                            <div className="text-[0.65rem] mt-0.5" style={{ color: 'var(--text-muted)' }}>Withdrawn: {ts}</div>
-                            <div className="text-[0.65rem] uppercase tracking-wider mt-1 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+                            <div className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
                               Target Buyer:&nbsp;
                               <PartyLabel partyId={log.payload.buyer} />
                             </div>
+                            <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Withdrawn: {ts}</div>
                           </div>
                           <span className="status-badge status-withdrawn">Withdrawn</span>
                         </div>

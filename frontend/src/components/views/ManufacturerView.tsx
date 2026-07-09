@@ -127,31 +127,30 @@ export const ManufacturerView: React.FC<{ partyId: string }> = ({ partyId: manuf
               </select>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="label">Technology Node</label>
-                <select
-                  className="input-field"
-                  value={formData.technologyNode}
-                  onChange={(e) => setFormData({ ...formData, technologyNode: e.target.value })}
-                >
-                  <option value="N3nm">N3nm</option>
-                  <option value="N5nm">N5nm</option>
-                  <option value="N7nm">N7nm</option>
-                  <option value="N14nm">N14nm</option>
-                </select>
-              </div>
-              <div>
-                <label className="label">Monthly Wafers</label>
-                <input
-                  type="number"
-                  className="input-field"
-                  value={formData.waferStartsPerMonth}
-                  onChange={(e) =>
-                    setFormData({ ...formData, waferStartsPerMonth: e.target.value ? parseInt(e.target.value) : '' })
-                  }
-                />
-              </div>
+            <div>
+              <label className="label">Category</label>
+              <select
+                className="input-field mb-3"
+                value={formData.technologyNode}
+                onChange={(e) => setFormData({ ...formData, technologyNode: e.target.value })}
+              >
+                <option value="N3nm">N3nm</option>
+                <option value="N5nm">N5nm</option>
+                <option value="N7nm">N7nm</option>
+                <option value="N14nm">N14nm</option>
+              </select>
+            </div>
+            
+            <div>
+              <label className="label">Monthly Wafers</label>
+              <input
+                type="number"
+                className="input-field mb-3"
+                value={formData.waferStartsPerMonth}
+                onChange={(e) =>
+                  setFormData({ ...formData, waferStartsPerMonth: e.target.value ? parseInt(e.target.value) : '' })
+                }
+              />
             </div>
 
             <div>
@@ -246,11 +245,14 @@ export const ManufacturerView: React.FC<{ partyId: string }> = ({ partyId: manuf
                         <div className="font-bold text-sm tracking-tight" style={{ color: 'var(--text-primary)' }}>
                           {asset.payload.assetId}
                         </div>
-                        <div className="text-[0.65rem] uppercase tracking-wider mt-0.5 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+                        <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                          Category: <span className="font-medium text-purple-400">{asset.payload.technologyNode}</span>
+                        </div>
+                        <div className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
                           Allocated to:&nbsp;
                           <PartyLabel partyId={asset.payload.owner} />
                         </div>
-                        <div className="text-[0.65rem] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                        <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
                           Issued: {ts}
                         </div>
                       </div>
@@ -260,9 +262,9 @@ export const ManufacturerView: React.FC<{ partyId: string }> = ({ partyId: manuf
                     {/* Stats grid */}
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
-                        <div style={{ color: 'var(--text-muted)' }}>Node / Monthly Wafers</div>
+                        <div style={{ color: 'var(--text-muted)' }}>Monthly Wafers</div>
                         <div className="font-mono font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>
-                          {asset.payload.technologyNode} / {parseInt(asset.payload.waferStartsPerMonth).toLocaleString()}
+                          {parseInt(asset.payload.waferStartsPerMonth).toLocaleString()}
                         </div>
                       </div>
                       <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
@@ -317,11 +319,14 @@ export const ManufacturerView: React.FC<{ partyId: string }> = ({ partyId: manuf
                     <div className="font-bold text-sm tracking-tight" style={{ color: 'var(--text-primary)' }}>
                       {penalty.payload.assetId}
                     </div>
-                    <div className="text-[0.65rem] uppercase tracking-wider mt-0.5 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+                    <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                      Category: <span className="font-medium text-purple-400">{penalty.payload.technologyNode}</span>
+                    </div>
+                    <div className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
                       Penalized Party:&nbsp;
                       <PartyLabel partyId={penalty.payload.penalizedParty} />
                     </div>
-                    <div className="text-[0.65rem] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                    <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
                       {isSettled ? 'Settled:' : 'Cancelled:'} {ts}
                     </div>
                   </div>
@@ -340,9 +345,9 @@ export const ManufacturerView: React.FC<{ partyId: string }> = ({ partyId: manuf
 
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">
-                    <div style={{ color: 'var(--text-muted)' }}>Node / Monthly Wafers</div>
+                    <div style={{ color: 'var(--text-muted)' }}>Monthly Wafers</div>
                     <div className="font-mono font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>
-                      {penalty.payload.technologyNode} / {wafers.toLocaleString()}
+                      {wafers.toLocaleString()}
                     </div>
                   </div>
                   <div className="bg-[var(--bg-page)] p-2 rounded border border-[var(--border-color)]">

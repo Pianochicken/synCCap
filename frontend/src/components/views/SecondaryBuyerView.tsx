@@ -145,27 +145,27 @@ export const SecondaryBuyerView: React.FC = () => {
                         </h4>
                         <span className="status-badge status-pending">Pending</span>
                       </div>
-                      <div className="text-[0.65rem] mb-3" style={{ color: 'var(--text-muted)' }}>
+                      <div className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
                         Received: {ts}
                       </div>
 
                       <div className="flex flex-wrap gap-3 text-sm">
                         <div>
-                          <span className="block text-xs uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>
+                          <span className="block text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>
                             Seller
                           </span>
                           <PartyLabel partyId={rfq.payload.seller} />
                         </div>
                         <div>
-                          <span className="block text-xs uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>
-                            Node
+                          <span className="block text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>
+                            Category
                           </span>
                           <span className="font-semibold" style={{ color: 'var(--primary)' }}>
                             {rfq.payload.technologyNode}
                           </span>
                         </div>
                         <div>
-                          <span className="block text-xs uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>
+                          <span className="block text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>
                             Monthly Wafers
                           </span>
                           <span className="font-medium" style={{ color: 'var(--text-secondary)' }}>
@@ -173,7 +173,7 @@ export const SecondaryBuyerView: React.FC = () => {
                           </span>
                         </div>
                         <div>
-                          <span className="block text-xs uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>
+                          <span className="block text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>
                             Seller's Unit Price
                           </span>
                           {/* Dark Pool privacy: seller's cost basis is intentionally hidden from buyer */}
@@ -295,12 +295,12 @@ export const SecondaryBuyerView: React.FC = () => {
                     </div>
                     <span className="status-badge status-active">Active</span>
                   </div>
-                  <div className="text-[0.65rem] mb-3" style={{ color: 'var(--text-muted)' }}>
+                  <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
                     Acquired: {ts}
                   </div>
                   <div className="space-y-1.5 text-sm">
                     <div className="flex justify-between">
-                      <span style={{ color: 'var(--text-muted)' }}>Tech Node</span>
+                      <span style={{ color: 'var(--text-muted)' }}>Category</span>
                       <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{asset.payload.technologyNode}</span>
                     </div>
                     <div className="flex justify-between">
