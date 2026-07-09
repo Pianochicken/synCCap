@@ -71,9 +71,11 @@ function mapLedgerError(err: unknown, c: any, operation: string) {
   console.error("RAW LEDGER ERROR:", message);
   logger.error(`Ledger error during ${operation}`, { error: message });
 
-  if (message.includes('NOT_FOUND') || message.includes('Contract not found')) {
+  if (message.includes('(401)') || message.includes('UNAUTHENTICATED')) {
+    return c.json({ error: 'UNAUTHORIZED', message: 'Token expired or invalid.' }, 401);
+  } else if (message.includes('NOT_FOUND') || message.includes('Contract not found')) {
     return c.json({ error: 'CONTRACT_NOT_FOUND', message: 'Contract not found or not visible.' }, 404);
-  } else if (message.includes('PERMISSION_DENIED') || message.includes('Authorization')) {
+  } else if (message.includes('PERMISSION_DENIED') || message.includes('Authorization') || message.includes('(403)')) {
     return c.json({ error: 'FORBIDDEN', message: 'Not authorized.' }, 403);
   } else if (message.includes('INVALID_ARGUMENT') || message.includes('Assertion failed')) {
     return c.json({ error: 'BUSINESS_LOGIC_ERROR', message }, 400);
