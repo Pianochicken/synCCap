@@ -385,27 +385,27 @@ export const LandingPage: React.FC = () => {
         <div className="grid md:grid-cols-3 gap-6">
           <RoleCard
             emoji="🏭"
-            name="TSMC"
-            role="Manufacturer"
+            name="Manufacturer"
+            role="Foundry"
             color="#4f8dff"
             sees={['All assets they issued', 'Full costBasisPerWafer', 'All penalty agreements']}
             blind={['Internal margins of buyers']}
           />
           <RoleCard
-            emoji="🍎"
-            name="Apple Inc."
-            role="Primary Buyer"
+            emoji="🏢"
+            name="Primary Buyer"
+            role="Tier-1 Consumer"
             color="#a78bfa"
             sees={['Assets they own', 'Their own cost basis', 'Asking price on RFQs they create']}
-            blind={["Qualcomm's agreed price after transfer", "Other buyer's contracts"]}
+            blind={["Secondary's agreed price after transfer", "Other buyer's contracts"]}
           />
           <RoleCard
-            emoji="📡"
-            name="Qualcomm Inc."
-            role="Secondary Buyer"
+            emoji="🛒"
+            name="Secondary Buyer"
+            role="Tier-2 Consumer"
             color="#10d97e"
             sees={['Incoming RFQ details', 'Asking price per wafer', 'Assets they own post-settlement']}
-            blind={["Apple's original cost basis (forever!)", 'The archived CapacityAsset contract']}
+            blind={["Primary's original cost basis (forever!)", 'The archived CapacityAsset contract']}
           />
         </div>
       </section>
