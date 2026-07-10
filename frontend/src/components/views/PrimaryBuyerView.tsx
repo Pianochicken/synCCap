@@ -4,6 +4,8 @@ import { toast } from 'react-hot-toast';
 import { ConfirmModal } from '../ConfirmModal';
 import { ApiService } from '../../api/client';
 import { useBackendQuery } from '../../hooks/useBackendQuery';
+import { TransactionToast } from '../TransactionToast';
+import { ContractIdDisplay } from '../ContractIdDisplay';
 import { PartyLabel } from '../PartyLabel';
 
 
@@ -68,8 +70,11 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
     if (!selectedWithdrawRfqId) return;
     try {
       setLoading(true);
-      await ApiService.withdrawTransfer({ rfqContractId: selectedWithdrawRfqId });
-      toast.success('Transfer cancelled and capacity reclaimed.');
+      const res = await ApiService.withdrawTransfer({ rfqContractId: selectedWithdrawRfqId });
+      toast.success(
+        (t) => <TransactionToast message="Transfer cancelled and capacity reclaimed." updateId={res.data?.updateId} toastId={t.id} />,
+        { duration: 600000 }
+      );
       setWithdrawModalOpen(false);
     } catch (err) {
       console.error(err);
@@ -83,8 +88,11 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
   const handleAcknowledgeRejection = async (logContractId: string) => {
     try {
       setLoading(true);
-      await ApiService.acknowledgeRejection({ logContractId });
-      toast.success('Capacity reclaimed successfully.');
+      const res = await ApiService.acknowledgeRejection({ logContractId });
+      toast.success(
+        (t) => <TransactionToast message="Capacity reclaimed successfully." updateId={res.data?.updateId} toastId={t.id} />,
+        { duration: 600000 }
+      );
     } catch (err) {
       console.error(err);
       toast.error('Failed to reclaim capacity.');
@@ -108,12 +116,15 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
         ? form.buyer
         : `${form.buyer}::${fingerprint}`;
 
-      await ApiService.proposeTransfer({
+      const res = await ApiService.proposeTransfer({
         assetContractId,
         secondaryBuyer: secondaryBuyerId,
         askingPricePerWafer: form.price,
       });
-      toast.success('Transfer RFQ posted to the Dark Pool!');
+      toast.success(
+        (t) => <TransactionToast message="Transfer RFQ posted to the Dark Pool!" updateId={res.data?.updateId} toastId={t.id} />,
+        { duration: 600000 }
+      );
     } catch (err) {
       console.error(err);
       toast.error('Failed to propose transfer.');
@@ -132,12 +143,15 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
     if (!selectedPenaltyAssetId) return;
     try {
       setLoading(true);
-      await ApiService.initiatePenalty({
+      const res = await ApiService.initiatePenalty({
         assetContractId: selectedPenaltyAssetId,
         penaltyRate: '0.25',
         cancellationReason: 'Business strategy pivot requires capacity cancellation.',
       });
-      toast.success('Penalty Agreement Initiated (Private)');
+      toast.success(
+        (t) => <TransactionToast message="Penalty Agreement Initiated (Private)" updateId={res.data?.updateId} toastId={t.id} />,
+        { duration: 600000 }
+      );
       setPenaltyModalOpen(false);
     } catch (err) {
       console.error(err);
@@ -230,13 +244,20 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
                       </div>
                       {statusBadge(asset.payload.status)}
                     </div>
-                    <div className="text-xs mb-3" style={{ color: 'var(--text-secondary)' }}>
-                      Category: <span className="font-medium text-purple-400">{asset.payload.technologyNode}</span>
+                    <ContractIdDisplay contractId={asset.contractId} />
+
+                    <div className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+                      Manufacturer:&nbsp;
+                      <PartyLabel partyId={asset.payload.manufacturer} />
                     </div>
 
                     {/* Timestamp */}
-                    <div className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
+                    <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
                       Issued: {ts}
+                    </div>
+
+                    <div className="text-xs mt-0.5 mb-3" style={{ color: 'var(--text-secondary)' }}>
+                      Category: <span className="font-medium text-purple-400">{asset.payload.technologyNode}</span>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 text-xs mt-4 pt-4 border-t border-[var(--border-color)]">
@@ -425,14 +446,18 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
                         <div className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
                           {rfq.payload.assetId}
                         </div>
-                        <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                          Category: <span className="font-medium text-purple-400">{rfq.payload.technologyNode}</span>
-                        </div>
+                        <ContractIdDisplay contractId={rfq.contractId} />
                         <div className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+                          Manufacturer:&nbsp;<PartyLabel partyId={rfq.payload.manufacturer} />
+                        </div>
+                        <div className="text-xs mt-0.5 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
                           Proposed to:&nbsp;<PartyLabel partyId={rfq.payload.buyer} />
                         </div>
                         <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
                           Submitted: {ts}
+                        </div>
+                        <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                          Category: <span className="font-medium text-purple-400">{rfq.payload.technologyNode}</span>
                         </div>
                       </div>
                       <span className="status-badge status-pending">
@@ -589,14 +614,15 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
                         <div className="flex justify-between items-start mb-2">
                           <div>
                             <div className="font-mono text-sm font-bold">{asset.payload.assetId}</div>
-                            <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                              Category: <span className="font-medium text-purple-400">{category}</span>
-                            </div>
-                            <div className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+                            <ContractIdDisplay contractId={asset.contractId} />
+                            <div className="text-xs mt-0.5 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
                               Buyer:&nbsp;
                               <PartyLabel partyId={asset.payload.owner} />
                             </div>
                             <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Transferred: {ts}</div>
+                            <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                              Category: <span className="font-medium text-purple-400">{category}</span>
+                            </div>
                           </div>
                           <span className="status-badge status-active">Transferred</span>
                         </div>
@@ -696,14 +722,15 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
                         <div className="flex justify-between items-start mb-2">
                           <div>
                             <div className="font-mono text-sm font-bold">{log.payload.assetId}</div>
-                            <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                              Category: <span className="font-medium text-purple-400">{category}</span>
-                            </div>
+                            <ContractIdDisplay contractId={log.contractId} />
                             <div className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
                               Buyer:&nbsp;
                               <PartyLabel partyId={log.payload.buyer} />
                             </div>
                             <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Rejected: {ts}</div>
+                            <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                              Category: <span className="font-medium text-purple-400">{category}</span>
+                            </div>
                           </div>
                           {log.payload.isReclaimed ? (
                             <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
@@ -815,14 +842,15 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
                         <div className="flex justify-between items-start mb-2">
                           <div>
                             <div className="font-mono text-sm font-bold">{log.payload.assetId}</div>
-                            <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                              Category: <span className="font-medium text-purple-400">{category}</span>
-                            </div>
+                            <ContractIdDisplay contractId={log.contractId} />
                             <div className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
                               Target Buyer:&nbsp;
                               <PartyLabel partyId={log.payload.buyer} />
                             </div>
                             <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Withdrawn: {ts}</div>
+                            <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                              Category: <span className="font-medium text-purple-400">{category}</span>
+                            </div>
                           </div>
                           <span className="status-badge status-withdrawn">Withdrawn</span>
                         </div>

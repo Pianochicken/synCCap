@@ -178,6 +178,8 @@ export interface CreateAssetResult {
   contractId: string;
   /** Echo of the asset ID for client-side correlation. */
   assetId: string;
+  /** The transaction update ID. */
+  updateId?: string;
 }
 
 /**
@@ -189,6 +191,8 @@ export interface ProposeTransferResult {
   rfqContractId: string;
   /** The buyer who can now see and act on this RFQ. */
   buyer: string;
+  /** The transaction update ID. */
+  updateId?: string;
 }
 
 /**
@@ -198,6 +202,8 @@ export interface ProposeTransferResult {
 export interface AcceptTransferResult {
   /** Contract ID of the new CapacityAsset (owned by buyer). */
   newAssetContractId: string;
+  /** The transaction update ID. */
+  updateId?: string;
 }
 
 /**
@@ -207,6 +213,8 @@ export interface AcceptTransferResult {
 export interface InitiatePenaltyResult {
   /** Contract ID of the new PenaltyAgreement. */
   penaltyContractId: string;
+  /** The transaction update ID. */
+  updateId?: string;
 }
 
 /**
@@ -216,6 +224,8 @@ export interface InitiatePenaltyResult {
 export interface SettlePenaltyResult {
   /** Contract ID of the settled PenaltyAgreement. */
   settledContractId: string;
+  /** The transaction update ID. */
+  updateId?: string;
 }
 
 /**
@@ -776,6 +786,7 @@ export class LedgerService {
     return {
       contractId,
       assetId: req.assetId,
+      updateId: response.updateId,
     };
   }
 
@@ -830,6 +841,7 @@ export class LedgerService {
     return {
       rfqContractId,
       buyer: req.secondaryBuyer,
+      updateId: response.updateId,
     };
   }
 
@@ -891,7 +903,7 @@ export class LedgerService {
       party: ctx.actingParty,
     });
 
-    return { newAssetContractId };
+    return { newAssetContractId, updateId: response.updateId };
   }
 
   /**
@@ -1064,7 +1076,7 @@ export class LedgerService {
 
     logger.info('PenaltyAgreement created', { penaltyContractId });
 
-    return { penaltyContractId };
+    return { penaltyContractId, updateId: response.updateId };
   }
 
   /**
@@ -1105,7 +1117,7 @@ export class LedgerService {
     // Confirm the transaction succeeded by checking completionOffset exists.
     logger.info('Penalty settled', { settledContractId, completionOffset: response.completionOffset });
 
-    return { settledContractId };
+    return { settledContractId, updateId: response.updateId };
   }
 
   // -------------------------------------------------------------------------

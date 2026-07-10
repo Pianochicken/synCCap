@@ -5,6 +5,8 @@ import { ConfirmModal } from '../ConfirmModal';
 import { ApiService } from '../../api/client';
 import { useBackendQuery } from '../../hooks/useBackendQuery';
 import { PartyLabel } from '../PartyLabel';
+import { TransactionToast } from '../TransactionToast';
+import { ContractIdDisplay } from '../ContractIdDisplay';
 
 const fmt2 = (v: string | number) =>
   parseFloat(String(v)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -27,8 +29,11 @@ export const SecondaryBuyerView: React.FC = () => {
       const lock = locks.find((l) => l.payload.assetId === rfq.payload.assetId);
       if (!lock) throw new Error('Lock not found');
 
-      await ApiService.acceptTransfer({ rfqContractId, agreedPricePerWafer });
-      toast.success('Atomic Settlement Complete! You now own the Capacity Asset.');
+      const res = await ApiService.acceptTransfer({ rfqContractId, agreedPricePerWafer });
+      toast.success(
+        (t) => <TransactionToast message="Atomic Settlement Complete! You now own the Capacity Asset." updateId={res.data?.updateId} toastId={t.id} />,
+        { duration: 600000 }
+      );
     } catch (err) {
       console.error(err);
       toast.error('Failed to accept transfer.');
@@ -46,8 +51,11 @@ export const SecondaryBuyerView: React.FC = () => {
     if (!selectedRfqId) return;
     try {
       setLoading(true);
-      await ApiService.rejectTransfer({ rfqContractId: selectedRfqId });
-      toast.success('Transfer rejected.');
+      const res = await ApiService.rejectTransfer({ rfqContractId: selectedRfqId });
+      toast.success(
+        (t) => <TransactionToast message="Transfer rejected." updateId={res.data?.updateId} toastId={t.id} />,
+        { duration: 600000 }
+      );
       setRejectModalOpen(false);
     } catch (err) {
       console.error(err);
@@ -140,10 +148,13 @@ export const SecondaryBuyerView: React.FC = () => {
                   <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mt-2">
                     {/* Left: Asset info */}
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h4 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
-                          {rfq.payload.assetId}
-                        </h4>
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <div>
+                          <h4 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
+                            {rfq.payload.assetId}
+                          </h4>
+                          <ContractIdDisplay contractId={rfq.contractId} />
+                        </div>
                         <span className="status-badge status-pending">Pending</span>
                       </div>
                       <div className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
@@ -291,8 +302,11 @@ export const SecondaryBuyerView: React.FC = () => {
               return (
                 <div key={asset.contractId} className="list-item-card p-4">
                   <div className="flex justify-between items-start mb-2">
-                    <div className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
-                      {asset.payload.assetId}
+                    <div>
+                      <div className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
+                        {asset.payload.assetId}
+                      </div>
+                      <ContractIdDisplay contractId={asset.contractId} />
                     </div>
                     <span className="status-badge status-active">Active</span>
                   </div>
@@ -369,14 +383,15 @@ export const SecondaryBuyerView: React.FC = () => {
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <div className="font-mono text-sm font-bold">{log.payload.assetId}</div>
-                        <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                          Category: <span className="font-medium text-purple-400">{log.payload.technologyNode ?? 'Unknown'}</span>
-                        </div>
+                        <ContractIdDisplay contractId={log.contractId} />
                         <div className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
                           Seller:&nbsp;
                           <PartyLabel partyId={log.payload.seller} />
                         </div>
                         <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Rejected: {ts}</div>
+                        <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                          Category: <span className="font-medium text-purple-400">{log.payload.technologyNode ?? 'Unknown'}</span>
+                        </div>
                       </div>
                       <span className="status-badge status-rejected">Rejected</span>
                     </div>

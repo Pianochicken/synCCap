@@ -95,7 +95,7 @@ export const ApiService = {
     costBasisPerWafer: string;
     commitmentStartDate: string;
     commitmentEndDate: string;
-  }): Promise<{ contractId: string }> {
+  }): Promise<{ data: { contractId: string; updateId?: string } }> {
     const res = await client.post('/api/v1/assets', payload);
     return res.data;
   },
@@ -108,7 +108,7 @@ export const ApiService = {
     assetContractId: string;
     secondaryBuyer: string;
     askingPricePerWafer: string;
-  }): Promise<{ rfqContractId: string }> {
+  }): Promise<{ data: { rfqContractId: string; updateId?: string } }> {
     const res = await client.post('/api/v1/transfers/propose', payload);
     return res.data;
   },
@@ -124,7 +124,7 @@ export const ApiService = {
   /**
    * Accept an RFQ (Secondary Buyer only)
    */
-  async acceptTransfer(payload: { rfqContractId: string; agreedPricePerWafer: string }): Promise<{ newAssetContractId: string }> {
+  async acceptTransfer(payload: { rfqContractId: string; agreedPricePerWafer: string }): Promise<{ data: { newAssetContractId: string; updateId?: string } }> {
     const res = await client.post('/api/v1/transfers/accept', payload);
     return res.data;
   },
@@ -144,7 +144,7 @@ export const ApiService = {
     assetContractId: string;
     penaltyRate: string;
     cancellationReason: string;
-  }): Promise<{ penaltyContractId: string }> {
+  }): Promise<{ data: { penaltyContractId: string; updateId?: string } }> {
     const res = await client.post('/api/v1/penalties/initiate', payload);
     return res.data;
   },
@@ -152,7 +152,7 @@ export const ApiService = {
   /**
    * Settle a Penalty Agreement (Manufacturer only)
    */
-  async settlePenalty(payload: { penaltyContractId: string }): Promise<{ settledContractId: string }> {
+  async settlePenalty(payload: { penaltyContractId: string }): Promise<{ data: { settledContractId: string; updateId?: string } }> {
     const res = await client.post('/api/v1/penalties/settle', payload);
     return res.data;
   },

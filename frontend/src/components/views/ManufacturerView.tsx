@@ -4,6 +4,8 @@ import { toast } from 'react-hot-toast';
 import { ApiService } from '../../api/client';
 import { useBackendQuery } from '../../hooks/useBackendQuery';
 import { PartyLabel } from '../PartyLabel';
+import { TransactionToast } from '../TransactionToast';
+import { ContractIdDisplay } from '../ContractIdDisplay';
 import { useDemoSessionContext } from '../../context/DemoSessionContext';
 
 // Helper: format number to 2 decimal places
@@ -63,7 +65,7 @@ export const ManufacturerView: React.FC<{ partyId: string }> = ({ partyId: manuf
         ? formData.owner
         : `${formData.owner}::${fingerprint}`;
 
-      await ApiService.createAsset({
+      const res = await ApiService.createAsset({
         owner: ownerPartyId,
         assetId,
         technologyNode: formData.technologyNode as any,
@@ -73,7 +75,10 @@ export const ManufacturerView: React.FC<{ partyId: string }> = ({ partyId: manuf
         commitmentEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
       });
 
-      toast.success('Asset issued successfully!');
+      toast.success(
+        (t) => <TransactionToast message="Asset issued successfully!" updateId={res.data?.updateId} toastId={t.id} />,
+        { duration: 600000 }
+      );
     } catch (err) {
       console.error(err);
       toast.error('Failed to issue asset. Check console for details.');
@@ -85,8 +90,11 @@ export const ManufacturerView: React.FC<{ partyId: string }> = ({ partyId: manuf
   const handleSettlePenalty = async (contractId: string) => {
     try {
       setLoading(true);
-      await ApiService.settlePenalty({ penaltyContractId: contractId });
-      toast.success('Penalty settled successfully!');
+      const res = await ApiService.settlePenalty({ penaltyContractId: contractId });
+      toast.success(
+        (t) => <TransactionToast message="Penalty settled successfully!" updateId={res.data?.updateId} toastId={t.id} />,
+        { duration: 600000 }
+      );
     } catch (err) {
       console.error(err);
       toast.error('Failed to settle penalty.');
@@ -250,15 +258,16 @@ export const ManufacturerView: React.FC<{ partyId: string }> = ({ partyId: manuf
                         <div className="font-bold text-sm tracking-tight" style={{ color: 'var(--text-primary)' }}>
                           {asset.payload.assetId}
                         </div>
-                        <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                          Category: <span className="font-medium text-purple-400">{asset.payload.technologyNode}</span>
-                        </div>
+                        <ContractIdDisplay contractId={asset.contractId} />
                         <div className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
                           Allocated to:&nbsp;
                           <PartyLabel partyId={asset.payload.owner} />
                         </div>
                         <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
                           Issued: {ts}
+                        </div>
+                        <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                          Category: <span className="font-medium text-purple-400">{asset.payload.technologyNode}</span>
                         </div>
                       </div>
                       {statusBadge(asset.payload.status)}
@@ -324,15 +333,16 @@ export const ManufacturerView: React.FC<{ partyId: string }> = ({ partyId: manuf
                     <div className="font-bold text-sm tracking-tight" style={{ color: 'var(--text-primary)' }}>
                       {penalty.payload.assetId}
                     </div>
-                    <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                      Category: <span className="font-medium text-purple-400">{penalty.payload.technologyNode}</span>
-                    </div>
+                    <ContractIdDisplay contractId={penalty.contractId} />
                     <div className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
                       Penalized Party:&nbsp;
                       <PartyLabel partyId={penalty.payload.penalizedParty} />
                     </div>
                     <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
                       {isSettled ? 'Settled:' : 'Cancelled:'} {ts}
+                    </div>
+                    <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                      Category: <span className="font-medium text-purple-400">{penalty.payload.technologyNode}</span>
                     </div>
                   </div>
                   {!isSettled ? (

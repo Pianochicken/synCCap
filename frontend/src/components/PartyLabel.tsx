@@ -46,17 +46,18 @@ export const PartyLabel: React.FC<{ partyId: string }> = ({ partyId }) => {
     <>
       <span
         ref={spanRef}
-        className="inline-flex items-center gap-1 cursor-pointer select-none"
+        className="group inline-flex items-center gap-1 cursor-pointer select-none font-mono font-medium hover:text-blue-500 transition-colors"
+        style={{ color: 'var(--text-primary)' }}
         onClick={handleCopy}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-        <span className="font-semibold" style={{ color: 'var(--text-secondary)' }}>
+        <span>
           {displayName}
         </span>
         <span
-          className="transition-colors"
-          style={{ color: copied ? '#34d399' : 'var(--text-muted)' }}
+          className="transition-opacity opacity-50 group-hover:opacity-100 group-hover:text-blue-500"
+          style={{ color: copied ? '#34d399' : 'inherit' }}
         >
           {copied
             ? <Check className="w-3 h-3" />
