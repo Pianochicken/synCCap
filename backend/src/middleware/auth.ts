@@ -89,7 +89,6 @@ export async function authenticate(c: Context<{ Variables: AuthVariables }>, nex
         const decoded = jwt.decode(token) as any;
         if (decoded && (decoded.scope?.includes('daml_ledger_api') || decoded.aud === config.devnet.clientId)) {
           const actingPartyHeader = c.req.header('X-Acting-Party');
-          const devnetNamespace = config.devnet.namespace;
           
           payload = {
             actAs: [actingPartyHeader || 'validator-devnet-m2m'], // Generic devnet identity or requested FQDN

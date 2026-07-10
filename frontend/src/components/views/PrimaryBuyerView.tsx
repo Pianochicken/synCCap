@@ -403,8 +403,6 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
               {[...transfers].reverse().map((rfq) => {
                 const askPrice = parseFloat(rfq.payload.askingPricePerWafer ?? '0');
                 const wafers = parseInt(rfq.payload.waferStartsPerMonth ?? '0');
-                const monthlyAsk = askPrice * wafers;
-                const totalAsk = monthlyAsk * 12;
                 const fin = financials.find((f) => f.payload.assetId === rfq.payload.assetId);
                 const originalUnitPrice = fin ? parseFloat(fin.payload.costBasisPerWafer) : 0;
                 

@@ -96,7 +96,7 @@ authRouter.openapi(tokenRoute, async (c) => {
 
     if (extraRights.length > 0) {
       const userId = party.toLowerCase().replace(/[^a-z0-9_-]/g, '');
-      await ledgerService.grantUserRights(userId, extraRights);
+      await ledgerService.grantUserRights(undefined, userId, extraRights);
     }
 
     const token = issueDevToken(actAsIds, readAsIds);

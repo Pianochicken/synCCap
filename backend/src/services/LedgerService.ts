@@ -42,6 +42,7 @@
 import { PartyContext } from '../middleware/auth';
 import { config } from '../config';
 import { logger } from '../logger';
+import jwt from 'jsonwebtoken';
 import {
   CreateAssetRequest,
   ProposeTransferRequest,
@@ -292,11 +293,31 @@ export class LedgerService {
    */
   async allocateParty(partyHint: string, ctx?: PartyContext): Promise<string> {
     if (ctx?.isDevnet) {
-      if (partyHint.includes('::')) return partyHint;
-      // Devnet M2M token does not allocate parties dynamically,
-      // so we append the shared namespace to ensure it is fully qualified.
-      const devnetNamespace = config.devnet.namespace;
-      return `${partyHint}::${devnetNamespace}`;
+      const partyId = partyHint.includes('::') 
+        ? partyHint 
+        : `${partyHint}::${config.devnet.namespace}`;
+        
+      // On Devnet, the API commands are authenticated using the M2M JWT token.
+      // Canton infers the `userId` from the token's `sub` claim.
+      // For our M2M user to act on behalf of this newly allocated party,
+      // we MUST grant it `CanActAs` and `CanReadAs` rights.
+      if (ctx.token) {
+        try {
+          const decoded = jwt.decode(ctx.token) as any;
+          if (decoded && decoded.sub) {
+            const m2mUserId = decoded.sub;
+            await this.grantUserRights(ctx, m2mUserId, [
+              { kind: { CanActAs: { value: { party: partyId } } } },
+              { kind: { CanReadAs: { value: { party: partyId } } } }
+            ]);
+            logger.info('Granted party rights to Devnet M2M User', { m2mUserId, partyId });
+          }
+        } catch (err) {
+          logger.error('Failed to grant rights to M2M user', { err });
+        }
+      }
+      
+      return partyId;
     }
 
     if (partyHint.includes('::')) {
@@ -373,14 +394,14 @@ export class LedgerService {
   /**
    * Grants additional rights to a Canton User.
    */
-  async grantUserRights(userId: string, rights: any[]): Promise<void> {
-    const url = `${this.baseUrl}/v2/user-rights/grant`;
-    logger.info('Granting user rights', { userId, rightsCount: rights.length });
+  async grantUserRights(ctx: PartyContext | undefined, userId: string, rights: any[]): Promise<void> {
+    const url = `${this.getBaseUrl(ctx)}/v2/users/${userId}/rights`;
+    logger.info('Granting user rights', { userId, url, rightsCount: rights.length });
 
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, rights }),
+      headers: this.getHeaders(ctx),
+      body: JSON.stringify({ userId, grantRights: rights, rights }),
     });
 
     if (!response.ok) {
@@ -703,7 +724,7 @@ export class LedgerService {
     const timestamp = new Date().toISOString();
     
     const assetPayload = {
-      manufacturer: ctx.actingParty,
+      manufacturer: manufacturerId,
       owner: ownerId,
       assetId: req.assetId,
       technologyNode: req.technologyNode,
@@ -715,7 +736,7 @@ export class LedgerService {
     };
 
     const finPayload = {
-      creditor: ctx.actingParty,
+      creditor: manufacturerId,
       debtor: ownerId,
       assetId: req.assetId,
       technologyNode: req.technologyNode,
@@ -740,7 +761,7 @@ export class LedgerService {
           },
         },
       ],
-      [ctx.actingParty, ownerId] // Dual-signatory: both must be in actAs
+      [manufacturerId, ownerId] // Dual-signatory: both must be in actAs
     );
 
     // Canton 3.x: submit-and-wait returns {updateId, completionOffset}.

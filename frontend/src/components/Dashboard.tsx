@@ -10,7 +10,7 @@ import { SecondaryBuyerView } from './views/SecondaryBuyerView';
 import { PrivacyAuditPanel } from './views/PrivacyAuditPanel';
 import type { AuthSession } from '../types/AuthSession';
 
-const ROLE_LABELS = {
+export const ROLE_LABELS = {
   Manufacturer: 'Foundry',
   PrimaryBuyer: 'Primary Buyer',
   SecondaryBuyer: 'Secondary Buyer',

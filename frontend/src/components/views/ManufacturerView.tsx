@@ -4,7 +4,7 @@ import { toast } from 'react-hot-toast';
 import { ApiService } from '../../api/client';
 import { useBackendQuery } from '../../hooks/useBackendQuery';
 import { PartyLabel } from '../PartyLabel';
-
+import { useDemoSessionContext } from '../../context/DemoSessionContext';
 
 // Helper: format number to 2 decimal places
 const fmt2 = (v: string | number) =>
@@ -35,6 +35,7 @@ export const ManufacturerView: React.FC<{ partyId: string }> = ({ partyId: manuf
   const fingerprint = manufacturerPartyId?.split('::')[1] || '';
 
   const { assets, financials, penalties, loadingAssets, loadingFinancials, loadingPenalties } = useBackendQuery();
+  const { demoSessionId } = useDemoSessionContext();
 
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<{
@@ -53,7 +54,11 @@ export const ManufacturerView: React.FC<{ partyId: string }> = ({ partyId: manuf
     e.preventDefault();
     try {
       setLoading(true);
-      const assetId = `WAFER-BATCH-${Math.floor(Math.random() * 100000)}`;
+      let assetId = `WAFER-BATCH-${Math.floor(Math.random() * 100000)}`;
+      if (demoSessionId) {
+        assetId += `_SID_${demoSessionId}`;
+      }
+      
       const ownerPartyId = formData.owner.includes('::')
         ? formData.owner
         : `${formData.owner}::${fingerprint}`;

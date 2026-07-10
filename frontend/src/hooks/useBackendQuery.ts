@@ -71,7 +71,7 @@ export function useBackendQuery() {
       setFinancials(filterBySession(financialsData));
       setTransfers(filterBySession(transfersData));
       setLocks(filterBySession(locksData));
-      setPenalties(filterBySession(penaltiesData, 'penaltyId'));
+      setPenalties(filterBySession(penaltiesData));
       setRejectedLogs(filterBySession(rejectedData));
       setWithdrawnLogs(filterBySession(withdrawnData));
     } catch (err) {

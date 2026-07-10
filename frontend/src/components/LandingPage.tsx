@@ -32,18 +32,7 @@ import { ThemeToggle } from './ThemeToggle';
 
 /* ─── tiny reusable pieces ────────────────────────────────────────────────── */
 
-const GradientBadge: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <span
-    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border"
-    style={{
-      background: 'var(--primary-glow)',
-      borderColor: 'var(--primary)',
-      color: 'var(--primary)',
-    }}
-  >
-    {children}
-  </span>
-);
+
 
 const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <p className="text-xs font-bold uppercase tracking-[0.2em] mb-3" style={{ color: 'var(--text-muted)' }}>

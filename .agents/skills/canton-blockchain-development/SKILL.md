@@ -238,3 +238,40 @@ const wrongPayload = {
   ]
 };
 ```
+
+---
+
+## 10. Granting Additional Rights in Canton 3.x (M2M Token Pattern)
+
+### Rule: Dynamically Granting Rights to M2M Users
+When using a shared Machine-to-Machine (M2M) JWT token in Devnet/Sandbox environments to submit commands on behalf of dynamically created parties, the M2M user does NOT automatically have authorization. You MUST explicitly grant `CanActAs` and `CanReadAs` rights to the M2M user (whose ID is the `sub` claim in the JWT) for the new party *before* submitting any commands. Failing to do so results in silent failures or a `403 Forbidden` error during `POST /v2/commands/submit-and-wait`.
+
+### Rule: The Endpoint and The `userId` Payload Trap
+In Canton 3.x, the endpoint for granting rights changed from the old `/v2/user-rights/grant` to **`POST /v2/users/{user-id}/rights`**. 
+
+**CRITICAL TRAP**: Even though the `user-id` is specified in the URL path, **the JSON body MUST still include the `userId` field**. If omitted, Canton will reject the request with a confusing error: `INVALID_ARGUMENT: <user-id> does not match user in body: Some()`. 
+Additionally, depending on the exact Canton version, the property for the rights array might be expected as `grantRights` (mapped from gRPC `GrantUserRightsRequest`) or `rights`. 
+
+### Implementation Pattern
+```typescript
+async function grantM2MRights(m2mUserId: string, targetPartyId: string) {
+  // 1. Use the NEW endpoint format: /v2/users/{user-id}/rights
+  const url = `${LEDGER_URL}/v2/users/${m2mUserId}/rights`;
+  
+  // 2. MUST include userId in the body despite it being in the URL
+  // 3. Provide both grantRights and rights to ensure schema compatibility
+  const payload = {
+    userId: m2mUserId, 
+    grantRights: [
+      { kind: { CanActAs: { value: { party: targetPartyId } } } },
+      { kind: { CanReadAs: { value: { party: targetPartyId } } } }
+    ],
+    rights: [
+      { kind: { CanActAs: { value: { party: targetPartyId } } } },
+      { kind: { CanReadAs: { value: { party: targetPartyId } } } }
+    ]
+  };
+
+  await fetch(url, { method: 'POST', body: JSON.stringify(payload) });
+}
+```
