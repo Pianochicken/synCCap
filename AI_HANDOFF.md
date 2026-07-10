@@ -96,11 +96,11 @@ A production-structured Hono REST API that bridges HTTP clients to the Canton Da
   - `POST /v2/parties` — Party allocation (allocate or look up a fully-qualified party ID)
 - **Template IDs:** `#synccap:Main:TemplateName` format (stable across upgrades)
 - **No-auth sandbox mode:** `dpm sandbox` runs without JWT auth by default. Commands pass `userId` in the body instead of Authorization header
-- **Party ID resolution:** All human-readable names (e.g., `AppleInc`) are resolved to fully-qualified Canton IDs (`AppleInc::1220...`) before submitting commands
+- **Party ID resolution:** All human-readable names (e.g., `PrimaryBuyer`) are resolved to fully-qualified Canton IDs (`PrimaryBuyer::1220...`) before submitting commands
 
 ### Critical Canton Fix: Dual-Signatory Authorization
 
-`CapacityAsset` requires both `manufacturer` and `owner` as signatories. When TSMC logs in, the auth token is issued with `actAs: [TSMC_ID, AppleInc_ID, QualcommInc_ID]` so the manufacturer can issue assets on behalf of buyers in the demo.
+`CapacityAsset` requires both `manufacturer` and `owner` as signatories. When Manufacturer logs in, the auth token is issued with `actAs: [Manufacturer_ID, PrimaryBuyer_ID, SecondaryBuyer_ID]` so the manufacturer can issue assets on behalf of buyers in the demo.
 
 ### Files
 
@@ -116,7 +116,7 @@ A production-structured Hono REST API that bridges HTTP clients to the Canton Da
 | `backend/src/middleware/auth.ts` | JWT → `PartyContext` middleware + sandbox token issuer. `issueDevToken` accepts `string | string[]` for multi-party `actAs` |
 | `backend/src/services/LedgerService.ts` | **Core service layer** — Canton JSON API v2 client. Resolves party IDs, handles NDJSON ACS responses |
 | `backend/src/routes/api.ts` | REST API routes |
-| `backend/src/routes/auth-routes.ts` | Sandbox token endpoint. TSMC login automatically adds AppleInc and QualcommInc to `actAs` |
+| `backend/src/routes/auth-routes.ts` | Sandbox token endpoint. Manufacturer login automatically adds PrimaryBuyer and SecondaryBuyer to `actAs` |
 | `backend/src/app.ts` | Hono `OpenAPIHono` app factory and Swagger UI setup |
 | `backend/src/server.ts` | Server entrypoint with graceful shutdown |
 
@@ -176,7 +176,7 @@ A modern React SPA using **Vite + Tailwind CSS v3 + TypeScript**. Implements the
 | `frontend/src/api/client.ts` | Axios HTTP client with JWT interceptor. All API response arrays are accessed via `res.data.data` |
 | `frontend/src/components/LandingPage.tsx` | Full marketing landing page with Hero, Problem, How It Works, Privacy comparison table, Role cards, CTA |
 | `frontend/src/components/ThemeToggle.tsx` | Animated Sun/Moon button that calls `useTheme()` |
-| `frontend/src/components/PartySwitcher.tsx` | Party selection card UI (TSMC / Apple / Qualcomm). Uses CSS custom properties for light/dark compatibility |
+| `frontend/src/components/PartySwitcher.tsx` | Party selection card UI (Manufacturer / Primary Buyer / Secondary Buyer). Uses CSS custom properties for light/dark compatibility |
 | `frontend/src/components/views/ManufacturerView.tsx` | Issue CapacityAssets; view inventory; settle penalties |
 | `frontend/src/components/views/PrimaryBuyerView.tsx` | View portfolio; propose Dark Pool transfers; initiate cancellation penalties |
 | `frontend/src/components/views/SecondaryBuyerView.tsx` | View incoming RFQs with privacy badge; accept transfers (atomic settlement) |
@@ -217,7 +217,7 @@ npm run dev    # Starts at http://localhost:5173
 
 - **Primary Track:** Private DeFi & Capital Markets
 - **Secondary Context:** TradeFi, RWA & Tokenized Assets
-- **Core Demo "Aha! Moment":** Qualcomm logs in and sees the incoming RFQ but **cannot see Apple's original cost basis** — this is the Canton privacy guarantee shown live
+- **Core Demo "Aha! Moment":** Secondary Buyer logs in and sees the incoming RFQ but **cannot see Primary Buyer's original cost basis** — this is the Canton privacy guarantee shown live
 
 ---
 
@@ -269,7 +269,7 @@ synCCap/
 │       │   └── auth.ts                  # JWT → PartyContext; issueDevToken supports multi-actAs
 │       ├── routes/
 │       │   ├── api.ts                   # All /api/v1/* routes
-│       │   └── auth-routes.ts           # POST /auth/token with TSMC multi-actAs grant
+│       │   └── auth-routes.ts           # POST /auth/token with Manufacturer multi-actAs grant
 │       └── services/
 │           └── LedgerService.ts         # Canton JSON API v2 client; resolves party IDs
 └── frontend/
@@ -364,7 +364,7 @@ Complete rewrite to a professional B2B SaaS Left-Right split layout:
 
 1. **`manufacturer` is inferred server-side** — The `POST /api/v1/assets` endpoint no longer accepts a `manufacturer` field in the request body. It uses `ctx.actingParty` from the JWT. Ensure any future client code does NOT send this field.
 
-2. **TSMC token has multi-actAs** — When TSMC logs in via `/auth/token`, the returned JWT includes `actAs` for TSMC, AppleInc, and QualcommInc. This is a sandbox-only demo shortcut. In production, use Canton's multi-party submission workflow.
+2. **Manufacturer token has multi-actAs** — When Manufacturer logs in via `/auth/token`, the returned JWT includes `actAs` for Manufacturer, PrimaryBuyer, and SecondaryBuyer. This is a sandbox-only demo shortcut. In production, use Canton's multi-party submission workflow.
 
 3. **Party IDs are fully-qualified** — All calls to LedgerService that pass party names (`req.owner`, `req.secondaryBuyer`) are resolved through `allocateParty()` before being sent to Canton. Never pass raw display names to the ledger.
 

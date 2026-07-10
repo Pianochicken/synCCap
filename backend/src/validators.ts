@@ -70,8 +70,8 @@ const dateString = z
 // ---------------------------------------------------------------------------
 
 export const CreateAssetSchema = z.object({
-  owner: partyString.openapi({ example: 'AppleInc' }),
-  assetId: z.string().min(1).openapi({ example: 'LOT-TSMC-3NM-2025Q3-001' }),
+  owner: partyString.openapi({ example: 'PrimaryBuyer' }),
+  assetId: z.string().min(1).openapi({ example: 'LOT-Manufacturer-3NM-2025Q3-001' }),
   technologyNode: TechnologyNodeSchema,
   waferStartsPerMonth: z.number().int().positive().openapi({ example: 200 }),
   costBasisPerWafer: positiveDecimalString.openapi({ example: '18500.00' }),
@@ -82,7 +82,7 @@ export type CreateAssetRequest = z.infer<typeof CreateAssetSchema>;
 
 export const ProposeTransferSchema = z.object({
   assetContractId: contractIdString.openapi({ example: '00abcd...' }),
-  secondaryBuyer: partyString.openapi({ example: 'QualcommInc' }),
+  secondaryBuyer: partyString.openapi({ example: 'SecondaryBuyer' }),
   askingPricePerWafer: positiveDecimalString.openapi({ example: '21500.00' }),
 }).openapi('ProposeTransferRequest');
 export type ProposeTransferRequest = z.infer<typeof ProposeTransferSchema>;
@@ -124,9 +124,9 @@ export const SettlePenaltySchema = z.object({
 export type SettlePenaltyRequest = z.infer<typeof SettlePenaltySchema>;
 
 export const IssueTokenSchema = z.object({
-  party: partyString.openapi({ example: 'TSMC' }),
-  additionalActAs: z.array(partyString).optional().openapi({ example: ['AppleInc'] }),
-  readAs: z.array(partyString).optional().openapi({ example: ['AppleInc'] }),
+  party: partyString.openapi({ example: 'Manufacturer' }),
+  additionalActAs: z.array(partyString).optional().openapi({ example: ['PrimaryBuyer'] }),
+  readAs: z.array(partyString).optional().openapi({ example: ['PrimaryBuyer'] }),
 }).openapi('IssueTokenRequest');
 export type IssueTokenRequest = z.infer<typeof IssueTokenSchema>;
 

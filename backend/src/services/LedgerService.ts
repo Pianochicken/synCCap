@@ -300,7 +300,7 @@ export class LedgerService {
    *
    * @param partyHint - Human-readable name (used as the party ID hint).
    * @param ctx - Optional party context. If devnet, allocation is bypassed.
-   * @returns The fully-qualified party ID (e.g., `TSMC::1220abc...`).
+   * @returns The fully-qualified party ID (e.g., `Manufacturer::1220abc...`).
    */
   async allocateParty(partyHint: string, ctx?: PartyContext): Promise<string> {
     if (ctx?.isDevnet) {

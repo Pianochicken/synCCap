@@ -7,7 +7,7 @@
  *  2. Problem Statement — why existing solutions fail
  *  3. How it Works — 3-step flow diagram
  *  4. Canton Privacy Deep-dive — privacy guarantee visualisation
- *  5. Roles — TSMC / Apple / Qualcomm personas
+ *  5. Roles — Manufacturer / Primary Buyer / Secondary Buyer personas
  *  6. CTA — Enter the Demo
  */
 
@@ -79,7 +79,7 @@ const StepCard: React.FC<StepCardProps> = ({ step, title, desc, icon, accent }) 
 /* ─── Privacy comparison table ─────────────────────────────────────────────── */
 
 const privacyRows = [
-  { label: "Qualcomm sees Apple's cost basis?", publicChain: true, traditionalDB: true, canton: false },
+  { label: "Secondary Buyer sees Primary Buyer's cost basis?", publicChain: true, traditionalDB: true, canton: false },
   { label: 'Trustless atomic settlement?',      publicChain: true, traditionalDB: false, canton: true },
   { label: 'Bilateral private penalties?',       publicChain: false, traditionalDB: true,  canton: true },
   { label: 'No central operator needed?',        publicChain: true,  traditionalDB: false, canton: true },
@@ -350,13 +350,13 @@ export const LandingPage: React.FC = () => {
                   >
                     <td className="px-6 py-4 font-medium" style={{ color: 'var(--text-primary)' }}>{label}</td>
                     <td className="text-center px-4 py-4">
-                      <Tick ok={publicChain} invert={label.includes("sees Apple")} />
+                      <Tick ok={publicChain} invert={label.includes("sees Primary Buyer")} />
                     </td>
                     <td className="text-center px-4 py-4">
-                      <Tick ok={traditionalDB} invert={label.includes("sees Apple")} />
+                      <Tick ok={traditionalDB} invert={label.includes("sees Primary Buyer")} />
                     </td>
                     <td className="text-center px-4 py-4">
-                      <Tick ok={canton} invert={label.includes("sees Apple")} />
+                      <Tick ok={canton} invert={label.includes("sees Primary Buyer")} />
                     </td>
                   </tr>
                 ))}

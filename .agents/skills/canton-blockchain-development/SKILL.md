@@ -40,8 +40,8 @@ abc123...hash:Main:CapacityAsset  ❌ Changes on every daml build
 ## 2. Party ID Resolution is Mandatory
 
 ### Rule
-Canton uses fully-qualified party IDs like `TSMC::1220abc...def`.
-Human-readable names (`TSMC`, `AppleInc`) are just "hints" — they must be
+Canton uses fully-qualified party IDs like `Manufacturer::1220abc...def`.
+Human-readable names (`Manufacturer`, `PrimaryBuyer`) are just "hints" — they must be
 resolved to full IDs before any ledger command.
 
 ### Implementation Pattern
@@ -56,17 +56,17 @@ async function resolvePartyId(partyHint: string): Promise<string> {
     }),
   });
   const data = await res.json();
-  return data.party_details.party; // "TSMC::1220abc...def"
+  return data.party_details.party; // "Manufacturer::1220abc...def"
 }
 ```
 
 ### Anti-Pattern
 ```typescript
 // ❌ WILL FAIL — Canton rejects raw display names in commands
-commands: [{ actAs: ['TSMC'] }]
+commands: [{ actAs: ['Manufacturer'] }]
 
 // ✅ CORRECT — resolved full ID
-commands: [{ actAs: ['TSMC::1220abc...def'] }]
+commands: [{ actAs: ['Manufacturer::1220abc...def'] }]
 ```
 
 ---
@@ -76,17 +76,17 @@ commands: [{ actAs: ['TSMC::1220abc...def'] }]
 ### Rule
 If a Daml template has **multiple signatories** (e.g., both `manufacturer` and `owner`),
 the submitting party's token must include ALL signatories in the `actAs` claim.
-In sandbox/demo mode, this means the issuing party (e.g., TSMC) needs a token
+In sandbox/demo mode, this means the issuing party (e.g., Manufacturer) needs a token
 that can act as both itself AND the buyer.
 
 ### Implementation Pattern
 ```typescript
-// When TSMC logs in, grant actAs for all demo parties
-if (partyHint === 'TSMC') {
-  const tsmcId = await resolvePartyId('TSMC');
-  const appleId = await resolvePartyId('AppleInc');
-  const qualcommId = await resolvePartyId('QualcommInc');
-  return issueToken({ actAs: [tsmcId, appleId, qualcommId] });
+// When Manufacturer logs in, grant actAs for all demo parties
+if (partyHint === 'Manufacturer') {
+  const manufacturerId = await resolvePartyId('Manufacturer');
+  const primaryBuyerId = await resolvePartyId('PrimaryBuyer');
+  const secondaryBuyerId = await resolvePartyId('SecondaryBuyer');
+  return issueToken({ actAs: [manufacturerId, primaryBuyerId, secondaryBuyerId] });
 }
 ```
 

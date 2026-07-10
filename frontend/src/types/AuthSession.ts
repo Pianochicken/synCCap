@@ -16,9 +16,9 @@ export type PartyRole = 'Manufacturer' | 'PrimaryBuyer' | 'SecondaryBuyer';
  * the same browser tab, but cleared when the tab is closed.
  */
 export interface AuthSession {
-  /** The fully qualified Canton Party ID, e.g. "TSMC::1220abc..." */
+  /** The fully qualified Canton Party ID, e.g. "Manufacturer::1220abc..." */
   partyId: string;
-  /** Human-readable company name, e.g. "TSMC" */
+  /** Human-readable company name, e.g. "Manufacturer" */
   displayName: string;
   /** The role this company plays on the platform */
   role: PartyRole;

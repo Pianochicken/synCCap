@@ -12,7 +12,7 @@ This directory contains the **React SPA** for the synCCap Canton Network project
 
 ## ✨ Features
 
-- **Multi-Party Dashboard**: Simulates three different network participants (TSMC, AppleInc, QualcommInc) in a single UI.
+- **Multi-Party Dashboard**: Simulates three different network participants (Manufacturer, PrimaryBuyer, SecondaryBuyer) in a single UI.
 - **Privacy Audit Panel**: Real-time visibility matrix showing exactly what Canton allows each party to see.
 - **Light & Dark Mode**: Dynamic CSS-variable based design system that adapts perfectly to system preferences.
 - **Responsive Design**: Modern, glassmorphism-inspired UI components.

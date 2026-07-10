@@ -25,7 +25,7 @@
  * ----------------------
  * - The sandbox must be running BEFORE the tests start.
  * - Sandbox tokens use HS256 with the JWT secret from .env.
- * - Party names in the sandbox are simple strings (e.g., "TSMC").
+ * - Party names in the sandbox are simple strings (e.g., "Manufacturer").
  */
 
 import request from 'supertest';
@@ -66,7 +66,7 @@ let secondaryBuyerToken: string;
 let dualPartyToken: string;
 
 /**
- * Fully-qualified Canton party IDs (e.g., TSMC::1220abc...).
+ * Fully-qualified Canton party IDs (e.g., Manufacturer::1220abc...).
  * These are returned by /auth/token and must be used in contract fields.
  */
 let manufacturerPartyId: string = MANUFACTURER;
@@ -103,7 +103,7 @@ describe('POST /auth/token', () => {
     expect(res.body).toHaveProperty('token');
     expect(typeof res.body.token).toBe('string');
     manufacturerToken = res.body.token;
-    // Capture the real Canton party ID (TSMC::1220...)
+    // Capture the real Canton party ID (Manufacturer::1220...)
     if (res.body.partyId) manufacturerPartyId = res.body.partyId;
   });
 
@@ -348,7 +348,7 @@ describeLedger('Ledger integration (requires running sandbox)', () => {
         .send({
           manufacturer: manufacturerPartyId,
           owner: primaryBuyerPartyId,
-          assetId: 'LOT-TSMC-3NM-2025Q3-001',
+          assetId: 'LOT-Manufacturer-3NM-2025Q3-001',
           technologyNode: 'N3nm',
           waferStartsPerMonth: 200,
           costBasisPerWafer: '18500.00',
@@ -362,7 +362,7 @@ describeLedger('Ledger integration (requires running sandbox)', () => {
       expect(res.status).toBe(201);
 
       expect(res.body.data).toHaveProperty('contractId');
-      expect(res.body.data.assetId).toBe('LOT-TSMC-3NM-2025Q3-001');
+      expect(res.body.data.assetId).toBe('LOT-Manufacturer-3NM-2025Q3-001');
       assetContractId = res.body.data.contractId;
     });
 
@@ -373,7 +373,7 @@ describeLedger('Ledger integration (requires running sandbox)', () => {
         .send({
           manufacturer: manufacturerPartyId,
           owner: primaryBuyerPartyId,
-          assetId: 'LOT-TSMC-5NM-2025Q4-002',
+          assetId: 'LOT-Manufacturer-5NM-2025Q4-002',
           technologyNode: 'N5nm',
           waferStartsPerMonth: 150,
           costBasisPerWafer: '12000.00',

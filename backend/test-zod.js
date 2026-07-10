@@ -1,9 +1,9 @@
 const { CreateAssetSchema } = require('./src/validators');
 
 const body = {
-  manufacturer: 'TSMC',
-  owner: 'AppleInc',
-  assetId: 'LOT-TSMC-3NM-2025Q3-001',
+  manufacturer: 'Manufacturer',
+  owner: 'PrimaryBuyer',
+  assetId: 'LOT-Manufacturer-3NM-2025Q3-001',
   technologyNode: 'N3nm',
   waferStartsPerMonth: 200,
   costBasisPerWafer: '18500.00',
