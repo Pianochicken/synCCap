@@ -38,7 +38,7 @@ Our solution is an **architectural decoupling** in our Daml smart contracts:
 
 When capacity is traded on the secondary market, the physical token is transferred, but the original financial token remains strictly bilateral and hidden. A *new* financial token is minted for the secondary buyer at the new agreed price. 
 
-### 📜 Smart Contract Layer (`synccap-v4`)
+### 📜 Smart Contract Layer (`synccap-v5`)
 
 Our Daml schema (`daml/SynCCap.daml`) defines five core templates to orchestrate this secure lifecycle:
 
@@ -70,22 +70,24 @@ sequenceDiagram
     participant PB as Primary Buyer
     participant SB as Secondary Buyer
     
-    Note over M, PB: 1. Primary Issuance
-    M->>PB: Issue Capacity Token (Cost: $18,500)
-    Note over M, PB: Creates CapacityAsset + CapacityFinancials
+    Note over M, PB: === Phase 1: Primary Issuance ===
+    M->>PB: Issue Capacity (Cost: $18,500)
+    Note over M, PB: Creates `CapacityAsset` (Operational details)<br/>Creates `CapacityFinancials` (Financial cost: $18,500)
     
-    Note over M, SB: 2. Secondary Market (Dark Pool)
+    Note over PB, SB: === Phase 2: Secondary Market (Dark Pool) ===
     PB->>SB: ProposeTransfer (Asking Price: $21,500)
-    Note over M, PB: Archives Asset, Creates AssetLock
-    Note over M, SB: Creates TransferRFQ (Visible to SB)
+    Note over M, PB: Archives original `CapacityAsset`<br/>Creates `CapacityAssetLock` (Escrow to prevent double-spend)
+    Note over PB, SB: Creates `TransferRFQ` (Visible to SB).<br/>Sub-Transaction Privacy fully isolates PB's `CapacityFinancials`.
     
-    SB->>PB: AcceptTransfer (Agreed Price: $21,500)
-    Note over M, SB: ⚡ ATOMIC SETTLEMENT ⚡
-    Note over M, PB: Archives TransferRFQ & AssetLock
-    Note over M, SB: Creates NEW CapacityAsset (Owner: SB)
-    Note over PB, SB: Creates NEW CapacityFinancials (Cost: $21,500)
+    Note over M, SB: === Phase 3: Atomic Settlement ===
+    SB->>PB: `AcceptTransfer` (Agreed Price: $21,500)
+    M-->>PB: Dual-Control Verification (Manufacturer signs off)
+    Note over M, SB: ⚡ ATOMIC SETTLEMENT EXECUTES ⚡
+    PB-->>M: `CapacityAssetLock` & `TransferRFQ` Archived
+    M->>SB: New `CapacityAsset` issued to SB
+    PB->>SB: New `CapacityFinancials` created (Cost: $21,500)
+    Note over M, SB: Secondary Buyer is now the new owner. They never saw the original $18,500 cost.<br/>Manufacturer never saw the new $21,500 price.
 ```
-*Notice: The Secondary Buyer (SB) never interacts with the Primary Buyer's (PB) original `CapacityFinancials` ($18,500).*
 
 ---
 
@@ -107,7 +109,7 @@ Run the Daml sandbox to simulate the Canton Network and expose the Ledger API on
 ```bash
 # In Terminal 1 (Root directory)
 dpm build
-dpm sandbox --json-api-port 7575 --dar .daml/dist/synccap-v4-0.1.0.dar
+dpm sandbox --json-api-port 7575 --dar .daml/dist/synccap-v5-0.1.0.dar
 ```
 
 ### Step 2: Start the Backend REST API
@@ -154,7 +156,7 @@ VITE_DEVNET_NAMESPACE=your_devnet_namespace
 ```
 
 ### Step 2: Upload Smart Contracts
-Upload the compiled `.daml/dist/synccap-v4-0.1.0.dar` file to your participant node on the Devnet.
+Upload the compiled `.daml/dist/synccap-v5-0.1.0.dar` file to your participant node on the Devnet.
 
 ### Step 3: Start the Application
 Run the backend and frontend exactly as you would in local development. 

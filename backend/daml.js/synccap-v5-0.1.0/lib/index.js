@@ -10,4 +10,4 @@ var SynCCap = require('./SynCCap');
 
 exports.SynCCap = SynCCap;
 
-exports.packageId = 'ad72da0b720a89a7cccb67faa5ec90cd97cf08eaaa09dfdf185f655810e9491c';
+exports.packageId = '09630ea91293d781ab05547c5ae9ced52c122ffaf7f239f1fabc9f8541a28cdc';

@@ -15,7 +15,7 @@ export const PartyLabel: React.FC<{ partyId: string }> = ({ partyId }) => {
   const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties | null>(null);
   const spanRef = useRef<HTMLSpanElement>(null);
 
-  const displayName = partyId.split('::')[0];
+  const displayName = partyId ? partyId.split('::')[0] : 'Unknown';
 
   const handleCopy = () => {
     navigator.clipboard.writeText(partyId).then(() => {

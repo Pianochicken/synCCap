@@ -52,7 +52,7 @@ import {
 } from '../validators';
 
 // Import the package ID from the codegen output
-import { SynCCap } from '@daml.js/synccap-v4-0.1.0';
+import { SynCCap } from '@daml.js/synccap-v5-0.1.0';
 
 // Alias the generated template types for cleaner usage
 type CapacityAssetType = SynCCap.CapacityAsset;
@@ -75,13 +75,13 @@ type PenaltyAgreementType = SynCCap.PenaltyAgreement;
  * The Canton API will resolve it to the latest deployed version.
  */
 const TEMPLATE_IDS = {
-  CapacityAsset: '#synccap-v4:SynCCap:CapacityAsset',
-  CapacityFinancials: '#synccap-v4:SynCCap:CapacityFinancials',
-  CapacityAssetLock: '#synccap-v4:SynCCap:CapacityAssetLock',
-  TransferRFQ: '#synccap-v4:SynCCap:TransferRFQ',
-  PenaltyAgreement: '#synccap-v4:SynCCap:PenaltyAgreement',
-  RejectedTransferLog: '#synccap-v4:SynCCap:RejectedTransferLog',
-  WithdrawnTransferLog: '#synccap-v4:SynCCap:WithdrawnTransferLog',
+  CapacityAsset: '#synccap-v5:SynCCap:CapacityAsset',
+  CapacityFinancials: '#synccap-v5:SynCCap:CapacityFinancials',
+  CapacityAssetLock: '#synccap-v5:SynCCap:CapacityAssetLock',
+  TransferRFQ: '#synccap-v5:SynCCap:TransferRFQ',
+  PenaltyAgreement: '#synccap-v5:SynCCap:PenaltyAgreement',
+  RejectedTransferLog: '#synccap-v5:SynCCap:RejectedTransferLog',
+  WithdrawnTransferLog: '#synccap-v5:SynCCap:WithdrawnTransferLog',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -818,31 +818,46 @@ export class LedgerService {
       buyer: buyerId,
     });
 
-    const response = await this.submitAndWait(ctx, [
-      {
-        ExerciseCommand: {
-          templateId: TEMPLATE_IDS.CapacityAsset,
-          contractId: req.assetContractId,
-          choice: 'ProposeTransfer',
-          choiceArgument: {
-            secondaryBuyer: buyerId,
-            askingPricePerWafer: req.askingPricePerWafer,
-          },
-        },
-      },
-    ]);
+    const assets = await this.queryActiveContracts(ctx, TEMPLATE_IDS.CapacityAsset);
+    const assetEvent = assets.find((e) => e.createdEvent.contractId === req.assetContractId);
+    if (!assetEvent) throw new Error('CapacityAsset not found.');
+    const assetArgs = assetEvent.createdEvent.createArgument as any;
 
-    const rfqContractId = await this.getContractIdFromUpdate(ctx, response.completionOffset);
+    const lockResponse = await this.submitAndWait(ctx, [{
+      ExerciseCommand: {
+        templateId: TEMPLATE_IDS.CapacityAsset,
+        contractId: req.assetContractId,
+        choice: 'LockForTransfer',
+        choiceArgument: { secondaryBuyer: buyerId },
+      }
+    }]);
+    
+    const lockCid = await this.getContractIdFromUpdate(ctx, lockResponse.completionOffset);
 
-    logger.info('TransferRFQ created', {
-      rfqContractId,
-      buyer: req.secondaryBuyer,
-    });
+    const rfqResponse = await this.submitAndWait(ctx, [{
+      CreateCommand: {
+        templateId: TEMPLATE_IDS.TransferRFQ,
+        createArguments: {
+          seller: ctx.actingParty,
+          buyer: buyerId,
+          assetId: assetArgs.assetId,
+          technologyNode: assetArgs.technologyNode,
+          waferStartsPerMonth: assetArgs.waferStartsPerMonth,
+          askingPricePerWafer: String(req.askingPricePerWafer),
+          commitmentStartDate: assetArgs.commitmentStartDate,
+          commitmentEndDate: assetArgs.commitmentEndDate,
+          lockCid: lockCid,
+          timestamp: new Date().toISOString()
+        }
+      }
+    }]);
+
+    const rfqContractId = await this.getContractIdFromUpdate(ctx, rfqResponse.completionOffset);
 
     return {
       rfqContractId,
       buyer: req.secondaryBuyer,
-      updateId: response.updateId,
+      updateId: rfqResponse.updateId,
     };
   }
 
@@ -872,17 +887,6 @@ export class LedgerService {
       rfqContractId: req.rfqContractId,
     });
 
-    // 1. Fetch the RFQ to get the assetId
-    const rfqs = await this.queryActiveContracts(ctx, TEMPLATE_IDS.TransferRFQ);
-    const rfqEvent = rfqs.find((e) => e.createdEvent.contractId === req.rfqContractId);
-    if (!rfqEvent) throw new Error('TransferRFQ not found or not visible.');
-    const assetId = (rfqEvent.createdEvent.createArgument as any).assetId;
-
-    // 2. Fetch the corresponding CapacityAssetLock
-    const locks = await this.queryActiveContracts(ctx, TEMPLATE_IDS.CapacityAssetLock);
-    const lockEvent = locks.find((e) => (e.createdEvent.createArgument as any).assetId === assetId);
-    if (!lockEvent) throw new Error('CapacityAssetLock not found for this assetId.');
-
     const response = await this.submitAndWait(ctx, [
       {
         ExerciseCommand: {
@@ -890,8 +894,7 @@ export class LedgerService {
           contractId: req.rfqContractId,
           choice: 'AcceptTransfer',
           choiceArgument: {
-            agreedPricePerWafer: req.agreedPricePerWafer,
-            lockCid: lockEvent.createdEvent.contractId,
+            agreedPricePerWafer: String(req.agreedPricePerWafer),
           },
         },
       },
@@ -946,25 +949,29 @@ export class LedgerService {
       rfqContractId,
     });
 
-    // 1. Fetch the RFQ to get the assetId
     const rfqs = await this.queryActiveContracts(ctx, TEMPLATE_IDS.TransferRFQ);
     const rfqEvent = rfqs.find((e) => e.createdEvent.contractId === rfqContractId);
     if (!rfqEvent) throw new Error('TransferRFQ not found or not visible.');
-    const assetId = (rfqEvent.createdEvent.createArgument as any).assetId;
+    const lockCid = (rfqEvent.createdEvent.createArgument as any).lockCid;
 
-    // 2. Fetch the corresponding CapacityAssetLock
-    const locks = await this.queryActiveContracts(ctx, TEMPLATE_IDS.CapacityAssetLock);
-    const lockEvent = locks.find((e) => (e.createdEvent.createArgument as any).assetId === assetId);
-    if (!lockEvent) throw new Error('CapacityAssetLock not found for this asset.');
+    await this.submitAndWait(ctx, [
+      {
+        ExerciseCommand: {
+          templateId: TEMPLATE_IDS.TransferRFQ,
+          contractId: rfqContractId,
+          choice: 'WithdrawOffer',
+          choiceArgument: {},
+        },
+      },
+    ]);
 
-    // 3. Exercise WithdrawOffer on the Lock
     const response = await this.submitAndWait(ctx, [
       {
         ExerciseCommand: {
           templateId: TEMPLATE_IDS.CapacityAssetLock,
-          contractId: lockEvent.createdEvent.contractId,
-          choice: 'WithdrawOffer',
-          choiceArgument: { rfqCid: rfqContractId },
+          contractId: lockCid,
+          choice: 'WithdrawLock',
+          choiceArgument: {},
         },
       },
     ]);
@@ -985,25 +992,33 @@ export class LedgerService {
       logContractId,
     });
 
-    // 1. Fetch the RejectedTransferLog to get the assetId
     const logs = await this.queryActiveContracts(ctx, TEMPLATE_IDS.RejectedTransferLog);
     const logEvent = logs.find((e) => e.createdEvent.contractId === logContractId);
     if (!logEvent) throw new Error('RejectedTransferLog not found or not visible.');
     const assetId = (logEvent.createdEvent.createArgument as any).assetId;
 
-    // 2. Fetch the corresponding CapacityAssetLock
     const locks = await this.queryActiveContracts(ctx, TEMPLATE_IDS.CapacityAssetLock);
     const lockEvent = locks.find((e) => (e.createdEvent.createArgument as any).assetId === assetId);
     if (!lockEvent) throw new Error('CapacityAssetLock not found for this asset.');
 
-    // 3. Exercise AcknowledgeRejection on the Lock
+    await this.submitAndWait(ctx, [
+      {
+        ExerciseCommand: {
+          templateId: TEMPLATE_IDS.RejectedTransferLog,
+          contractId: logContractId,
+          choice: 'MarkReclaimed',
+          choiceArgument: {},
+        },
+      },
+    ]);
+
     const response = await this.submitAndWait(ctx, [
       {
         ExerciseCommand: {
           templateId: TEMPLATE_IDS.CapacityAssetLock,
           contractId: lockEvent.createdEvent.contractId,
-          choice: 'AcknowledgeRejection',
-          choiceArgument: { logCid: logContractId },
+          choice: 'AcknowledgeRejectionLock',
+          choiceArgument: {},
         },
       },
     ]);

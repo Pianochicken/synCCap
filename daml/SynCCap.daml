@@ -173,49 +173,25 @@ template CapacityAsset
     -- | than the original asset, demonstrating sub-transaction privacy.
     -- | The secondary buyer sees the RFQ but not the archived CapacityAsset.
     -- | The secondary buyer sees the RFQ but not the archived CapacityAsset.
-    choice ProposeTransfer : (ContractId TransferRFQ, ContractId CapacityAssetLock)
+    choice LockForTransfer : ContractId CapacityAssetLock
       with
-        -- | The party to whom capacity is being offered.
         secondaryBuyer : Party
-        -- | The asking price per wafer (set by the Primary Buyer).
-        -- | This is the ONLY price the Secondary Buyer will ever see.
-        askingPricePerWafer : Decimal
       controller owner
       do
         now <- getTime
-        -- Validate the asset is in a transferable state.
         assertMsg "Only Active assets can be proposed for transfer"
           (status == Active)
-        -- Validate asking price is positive.
-        assertMsg "Asking price must be positive"
-          (askingPricePerWafer > 0.0)
-        -- Create the RFQ. Note: the original costBasisPerWafer is NOT
-        -- carried into the TransferRFQ, preserving pricing confidentiality.
-        rfqCid <- create TransferRFQ with
-          manufacturer        = manufacturer
-          seller              = owner
-          buyer               = secondaryBuyer
-          assetId             = assetId
-          technologyNode      = technologyNode
-          waferStartsPerMonth = waferStartsPerMonth
-          askingPricePerWafer = askingPricePerWafer
-          commitmentStartDate = commitmentStartDate
-          commitmentEndDate   = commitmentEndDate
-          timestamp           = now
-
-        lockCid <- create CapacityAssetLock with
+          
+        create CapacityAssetLock with
           manufacturer        = manufacturer
           owner               = owner
           assetId             = assetId
           technologyNode      = technologyNode
           waferStartsPerMonth = waferStartsPerMonth
           buyer               = secondaryBuyer
-          -- costBasisPerWafer removed
           commitmentStartDate = commitmentStartDate
           commitmentEndDate   = commitmentEndDate
           timestamp           = now
-          
-        return (rfqCid, lockCid)
 
     -- Note: InitiatePenalty is moved to CapacityFinancials.
 
@@ -242,82 +218,29 @@ template CapacityAsset
 -- |   sub-transaction that is invisible to the buyer's participant node.
 template TransferRFQ
   with
-    -- | The foundry validating the transfer.
-    manufacturer        : Party
-    -- | The current capacity holder offering to sell.
     seller              : Party
-    -- | The prospective new owner.
     buyer               : Party
-    -- | Lot identifier carried forward from the CapacityAsset.
     assetId             : Text
-    -- | Technology node of the capacity.
     technologyNode      : TechnologyNode
-    -- | Monthly wafer allocation being offered.
     waferStartsPerMonth : Int
-    -- | The price per wafer visible to the buyer.
-    -- | This is the ONLY price reference point the buyer has.
     askingPricePerWafer : Decimal
-    -- | Commitment start date.
     commitmentStartDate : Text
-    -- | Commitment end date.
     commitmentEndDate   : Text
-    -- | Time when this RFQ was created.
+    lockCid             : ContractId CapacityAssetLock
     timestamp           : Time
   where
-    -- Seller and manufacturer must both authorize the RFQ.
-    -- The manufacturer's signature ensures foundry-level approval of the transfer.
-    signatory manufacturer, seller
-    -- The buyer can observe the RFQ to evaluate and accept/reject it.
-    -- They see askingPricePerWafer, NOT the original costBasisPerWafer.
+    signatory seller
     observer buyer
 
-    -- -----------------------------------------------------------------------
-    -- Choice: AcceptTransfer (Atomic Settlement)
-    -- -----------------------------------------------------------------------
-    -- | The buyer accepts the RFQ, triggering atomic settlement:
-    -- |   1. This TransferRFQ contract is archived (consumed).
-    -- |   2. A NEW CapacityAsset is created with the BUYER as owner.
-    -- |   3. The new asset's costBasisPerWafer is set to the askingPricePerWafer,
-    -- |      NOT the original seller's cost. This is the privacy firewall.
-    -- |
-    -- | Canton Atomic Settlement:
-    -- |   Both the archival of the RFQ and the creation of the new asset
-    -- |   happen in a single, atomic transaction. There is no intermediate
-    -- |   state where capacity exists without an owner or where the buyer
-    -- |   has paid without receiving the asset.
     choice AcceptTransfer : (ContractId CapacityAsset, ContractId CapacityFinancials)
       with
-        -- | The final negotiated price (may differ from asking price).
         agreedPricePerWafer : Decimal
-        -- | The lock to be archived
-        lockCid : ContractId CapacityAssetLock
       controller buyer
       do
         now <- getTime
         assertMsg "Agreed price must be positive"
           (agreedPricePerWafer > 0.0)
           
-        -- We must fetch the lock to verify it belongs to this RFQ
-        lock <- fetch lockCid
-        assertMsg "Lock assetId mismatch" (lock.assetId == assetId)
-        assertMsg "Lock seller mismatch" (lock.owner == seller)
-        
-        -- Archive the lock, fixing the dangling Pending Transfer bug!
-        archive lockCid
-
-        -- Atomic creation of the new CapacityAsset for the buyer.
-        assetCid <- create CapacityAsset with
-          manufacturer        = manufacturer
-          owner               = buyer
-          assetId             = assetId
-          technologyNode      = technologyNode
-          waferStartsPerMonth = waferStartsPerMonth
-          commitmentStartDate = commitmentStartDate
-          commitmentEndDate   = commitmentEndDate
-          status              = Active
-          timestamp           = now
-          
-        -- Create the new financial obligation between seller and buyer (Sub-lease)
         finCid <- create CapacityFinancials with
           creditor            = seller
           debtor              = buyer
@@ -326,19 +249,16 @@ template TransferRFQ
           waferStartsPerMonth = waferStartsPerMonth
           costBasisPerWafer   = agreedPricePerWafer
           timestamp           = now
-
+          
+        assetCid <- exercise lockCid FinalizeTransfer with newOwner = buyer
+          
         return (assetCid, finCid)
 
-    -- -----------------------------------------------------------------------
-    -- Choice: RejectTransfer
-    -- -----------------------------------------------------------------------
-    -- | The buyer declines the offer. The RFQ is archived and a log is created.
     choice RejectTransfer : ContractId RejectedTransferLog
       controller buyer
       do
         now <- getTime
         create RejectedTransferLog with
-          manufacturer = manufacturer
           seller = seller
           buyer = buyer
           assetId = assetId
@@ -347,14 +267,22 @@ template TransferRFQ
           askingPricePerWafer = askingPricePerWafer
           isReclaimed = False
           timestamp = now
+          
+    choice WithdrawOffer : ContractId WithdrawnTransferLog
+      controller seller
+      do
+        now <- getTime
+        create WithdrawnTransferLog with
+          seller = seller
+          buyer = buyer
+          assetId = assetId
+          technologyNode = technologyNode
+          waferStartsPerMonth = waferStartsPerMonth
+          askingPricePerWafer = askingPricePerWafer
+          timestamp = now
 
-
-
-
--- | Record of a buyer rejecting a dark pool transfer.
 template RejectedTransferLog
   with
-    manufacturer : Party
     seller : Party
     buyer : Party
     assetId : Text
@@ -364,7 +292,7 @@ template RejectedTransferLog
     isReclaimed : Bool
     timestamp : Time
   where
-    signatory manufacturer, seller
+    signatory seller
     observer buyer
 
     choice MarkReclaimed : ContractId RejectedTransferLog
@@ -373,10 +301,8 @@ template RejectedTransferLog
         assertMsg "Already reclaimed" (not isReclaimed)
         create this with isReclaimed = True
 
--- | Record of a seller withdrawing an RFQ from the dark pool.
 template WithdrawnTransferLog
   with
-    manufacturer : Party
     seller : Party
     buyer : Party
     assetId : Text
@@ -385,8 +311,9 @@ template WithdrawnTransferLog
     askingPricePerWafer : Decimal
     timestamp : Time
   where
-    signatory manufacturer, seller
+    signatory seller
     observer buyer
+
 -- ============================================================================
 -- SECTION 4: PENALTY AGREEMENT TEMPLATE
 -- ============================================================================
@@ -495,8 +422,6 @@ template CapacityAssetLock
     technologyNode : TechnologyNode
     waferStartsPerMonth : Int
     buyer : Party
-    -- costBasisPerWafer is removed
-
     commitmentStartDate : Text
     commitmentEndDate : Text
     timestamp : Time
@@ -504,28 +429,28 @@ template CapacityAssetLock
     signatory manufacturer, owner
     observer buyer
 
-    -- | The seller withdraws their offer, archiving the RFQ and restoring the asset.
-    choice WithdrawOffer : ContractId CapacityAsset
+    choice FinalizeTransfer : ContractId CapacityAsset
       with
-        rfqCid : ContractId TransferRFQ
-      controller owner
+        newOwner : Party
+      controller owner, buyer
       do
         now <- getTime
-        rfq <- fetch rfqCid
-        assertMsg "RFQ assetId mismatch" (rfq.assetId == assetId)
-        
-        archive rfqCid
-        
-        create WithdrawnTransferLog with
+        assertMsg "New owner must be the authorized buyer" (newOwner == buyer)
+        create CapacityAsset with
           manufacturer = manufacturer
-          seller = owner
-          buyer = rfq.buyer
+          owner = newOwner
           assetId = assetId
           technologyNode = technologyNode
           waferStartsPerMonth = waferStartsPerMonth
-          askingPricePerWafer = rfq.askingPricePerWafer
+          commitmentStartDate = commitmentStartDate
+          commitmentEndDate = commitmentEndDate
+          status = Active
           timestamp = now
 
+    choice WithdrawLock : ContractId CapacityAsset
+      controller owner
+      do
+        now <- getTime
         create CapacityAsset with
           manufacturer = manufacturer
           owner = owner
@@ -537,18 +462,10 @@ template CapacityAssetLock
           status = Active
           timestamp = now
 
-    -- | The seller acknowledges the buyer's rejection, restoring the asset.
-    choice AcknowledgeRejection : ContractId CapacityAsset
-      with
-        logCid : ContractId RejectedTransferLog
+    choice AcknowledgeRejectionLock : ContractId CapacityAsset
       controller owner
       do
         now <- getTime
-        log <- fetch logCid
-        assertMsg "Log assetId mismatch" (log.assetId == assetId)
-        
-        exercise logCid MarkReclaimed
-
         create CapacityAsset with
           manufacturer = manufacturer
           owner = owner
@@ -559,4 +476,3 @@ template CapacityAssetLock
           commitmentEndDate = commitmentEndDate
           status = Active
           timestamp = now
-

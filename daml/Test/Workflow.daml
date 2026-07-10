@@ -81,10 +81,22 @@ testSynCCapWorkflow = script do
   -- The asking price ($22,000) is marked up from the original $18,500 cost.
   -- Startup_ChipCo will NEVER know that Apple paid $18,500.
   -- They will only see the $22,000 asking price on the TransferRFQ.
-  (transferRfqCid, lockCid) <- submit (actAs manufacturer <> actAs primaryBuyer) do
-    exerciseCmd capacityAssetCid ProposeTransfer with
+  lockCid <- submit primaryBuyer do
+    exerciseCmd capacityAssetCid LockForTransfer with
       secondaryBuyer      = secondaryBuyer
-      askingPricePerWafer = 22000.0              -- Marked up from $18,500
+
+  transferRfqCid <- submit primaryBuyer do
+    createCmd TransferRFQ with
+      seller              = primaryBuyer
+      buyer               = secondaryBuyer
+      assetId             = "LOT-TSMC-3NM-2025Q3-001"
+      technologyNode      = N3nm
+      waferStartsPerMonth = 500
+      askingPricePerWafer = 22000.0
+      commitmentStartDate = "2025-07-01"
+      commitmentEndDate   = "2026-06-30"
+      lockCid             = lockCid
+      timestamp           = now
 
   -- =========================================================================
   -- STEP 4: Secondary Buyer Accepts the Transfer (Atomic Settlement)
@@ -98,7 +110,6 @@ testSynCCapWorkflow = script do
   (newAssetCid, newFinCid) <- submit secondaryBuyer do
     exerciseCmd transferRfqCid AcceptTransfer with
       agreedPricePerWafer = 21500.0              -- Negotiated down to $21,500
-      lockCid = lockCid
 
   -- =========================================================================
   -- STEP 5: Verify Privacy — Query Contracts by Party
@@ -268,10 +279,22 @@ testSynCCapRejectReclaimWorkflow = script do
       timestamp           = now
 
   -- Propose transfer
-  (transferRfqCid, lockCid) <- submit (actAs manufacturer <> actAs primaryBuyer) do
-    exerciseCmd capacityAssetCid ProposeTransfer with
+  lockCid <- submit primaryBuyer do
+    exerciseCmd capacityAssetCid LockForTransfer with
       secondaryBuyer      = secondaryBuyer
+
+  transferRfqCid <- submit primaryBuyer do
+    createCmd TransferRFQ with
+      seller              = primaryBuyer
+      buyer               = secondaryBuyer
+      assetId             = "LOT-REJECT-TEST-001"
+      technologyNode      = N3nm
+      waferStartsPerMonth = 500
       askingPricePerWafer = 22000.0
+      commitmentStartDate = "2025-07-01"
+      commitmentEndDate   = "2026-06-30"
+      lockCid             = lockCid
+      timestamp           = now
 
   -- Secondary Buyer rejects
   logCid <- submit secondaryBuyer do
@@ -284,8 +307,10 @@ testSynCCapRejectReclaimWorkflow = script do
 
   -- Primary buyer reclaims asset
   newAssetCid <- submit primaryBuyer do
-    exerciseCmd lockCid AcknowledgeRejection with
-      logCid = logCid
+    exerciseCmd lockCid AcknowledgeRejectionLock
+
+  submit primaryBuyer do
+    exerciseCmd logCid MarkReclaimed
 
   -- Verify log is reclaimed
   logs <- query @RejectedTransferLog primaryBuyer
@@ -332,15 +357,29 @@ testSynCCapWithdrawWorkflow = script do
       timestamp           = now
 
   -- Propose transfer
-  (transferRfqCid, lockCid) <- submit (actAs manufacturer <> actAs primaryBuyer) do
-    exerciseCmd capacityAssetCid ProposeTransfer with
+  lockCid <- submit primaryBuyer do
+    exerciseCmd capacityAssetCid LockForTransfer with
       secondaryBuyer      = secondaryBuyer
+
+  transferRfqCid <- submit primaryBuyer do
+    createCmd TransferRFQ with
+      seller              = primaryBuyer
+      buyer               = secondaryBuyer
+      assetId             = "LOT-WITHDRAW-TEST-001"
+      technologyNode      = N5nm
+      waferStartsPerMonth = 200
       askingPricePerWafer = 15000.0
+      commitmentStartDate = "2025-07-01"
+      commitmentEndDate   = "2026-06-30"
+      lockCid             = lockCid
+      timestamp           = now
 
   -- Primary buyer changes mind and withdraws
+  submit primaryBuyer do
+    exerciseCmd transferRfqCid WithdrawOffer
+
   newAssetCid <- submit primaryBuyer do
-    exerciseCmd lockCid WithdrawOffer with
-      rfqCid = transferRfqCid
+    exerciseCmd lockCid WithdrawLock
 
   -- Verify withdrawn log created
   logs <- query @WithdrawnTransferLog primaryBuyer

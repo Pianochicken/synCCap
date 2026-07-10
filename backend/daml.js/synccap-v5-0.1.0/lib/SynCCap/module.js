@@ -18,27 +18,22 @@ exports.AcceptTransfer = {
   decoder: damlTypes.lazyMemo(function () {
     return jtv.object({
       agreedPricePerWafer: damlTypes.Numeric(10).decoder,
-      lockCid: damlTypes.ContractId(exports.CapacityAssetLock).decoder,
     });
   }),
   encode: function (__typed__) {
     return {
       agreedPricePerWafer: damlTypes.Numeric(10).encode(__typed__.agreedPricePerWafer),
-      lockCid: damlTypes.ContractId(exports.CapacityAssetLock).encode(__typed__.lockCid),
     };
   },
 };
 
-exports.AcknowledgeRejection = {
+exports.AcknowledgeRejectionLock = {
   decoder: damlTypes.lazyMemo(function () {
     return jtv.object({
-      logCid: damlTypes.ContractId(exports.RejectedTransferLog).decoder,
     });
   }),
   encode: function (__typed__) {
-    return {
-      logCid: damlTypes.ContractId(exports.RejectedTransferLog).encode(__typed__.logCid),
-    };
+    return {};
   },
 };
 
@@ -59,8 +54,8 @@ exports.AssetStatus = {
 
 exports.CapacityAsset = damlTypes.assembleTemplate(
   {
-    templateId: '#synccap-v4:SynCCap:CapacityAsset',
-    templateIdWithPackageId: '#ad72da0b720a89a7cccb67faa5ec90cd97cf08eaaa09dfdf185f655810e9491c:SynCCap:CapacityAsset',
+    templateId: '#synccap-v5:SynCCap:CapacityAsset',
+    templateIdWithPackageId: '#09630ea91293d781ab05547c5ae9ced52c122ffaf7f239f1fabc9f8541a28cdc:SynCCap:CapacityAsset',
     keyDecoder: jtv.constant(undefined),
     keyEncode: function () { throw 'EncodeError'; },
     decoder: damlTypes.lazyMemo(function () {
@@ -101,27 +96,27 @@ exports.CapacityAsset = damlTypes.assembleTemplate(
       }),
       resultEncode: function (__typed__) { return damlTypes.Unit.encode(__typed__); },
     },
-    ProposeTransfer: {
+    LockForTransfer: {
       template: function () { return exports.CapacityAsset; },
-      choiceName: 'ProposeTransfer',
+      choiceName: 'LockForTransfer',
       argumentDecoder: damlTypes.lazyMemo(function () {
-        return exports.ProposeTransfer.decoder;
+        return exports.LockForTransfer.decoder;
       }),
-      argumentEncode: function (__typed__) { return exports.ProposeTransfer.encode(__typed__); },
+      argumentEncode: function (__typed__) { return exports.LockForTransfer.encode(__typed__); },
       resultDecoder: damlTypes.lazyMemo(function () {
-        return pkg5aee9b21b8e9a4c4975b5f4c4198e6e6e8469df49e2010820e792f393db870f4.DA.Types.Tuple2(damlTypes.ContractId(exports.TransferRFQ), damlTypes.ContractId(exports.CapacityAssetLock)).decoder;
+        return damlTypes.ContractId(exports.CapacityAssetLock).decoder;
       }),
-      resultEncode: function (__typed__) { return pkg5aee9b21b8e9a4c4975b5f4c4198e6e6e8469df49e2010820e792f393db870f4.DA.Types.Tuple2(damlTypes.ContractId(exports.TransferRFQ), damlTypes.ContractId(exports.CapacityAssetLock)).encode(__typed__); },
+      resultEncode: function (__typed__) { return damlTypes.ContractId(exports.CapacityAssetLock).encode(__typed__); },
     },
   },
 );
 
-damlTypes.registerTemplate(exports.CapacityAsset, ['ad72da0b720a89a7cccb67faa5ec90cd97cf08eaaa09dfdf185f655810e9491c', '#synccap-v4']);
+damlTypes.registerTemplate(exports.CapacityAsset, ['09630ea91293d781ab05547c5ae9ced52c122ffaf7f239f1fabc9f8541a28cdc', '#synccap-v5']);
 
 exports.CapacityAssetLock = damlTypes.assembleTemplate(
   {
-    templateId: '#synccap-v4:SynCCap:CapacityAssetLock',
-    templateIdWithPackageId: '#ad72da0b720a89a7cccb67faa5ec90cd97cf08eaaa09dfdf185f655810e9491c:SynCCap:CapacityAssetLock',
+    templateId: '#synccap-v5:SynCCap:CapacityAssetLock',
+    templateIdWithPackageId: '#09630ea91293d781ab05547c5ae9ced52c122ffaf7f239f1fabc9f8541a28cdc:SynCCap:CapacityAssetLock',
     keyDecoder: jtv.constant(undefined),
     keyEncode: function () { throw 'EncodeError'; },
     decoder: damlTypes.lazyMemo(function () {
@@ -150,13 +145,13 @@ exports.CapacityAssetLock = damlTypes.assembleTemplate(
         timestamp: damlTypes.Time.encode(__typed__.timestamp),
       };
     },
-    AcknowledgeRejection: {
+    AcknowledgeRejectionLock: {
       template: function () { return exports.CapacityAssetLock; },
-      choiceName: 'AcknowledgeRejection',
+      choiceName: 'AcknowledgeRejectionLock',
       argumentDecoder: damlTypes.lazyMemo(function () {
-        return exports.AcknowledgeRejection.decoder;
+        return exports.AcknowledgeRejectionLock.decoder;
       }),
-      argumentEncode: function (__typed__) { return exports.AcknowledgeRejection.encode(__typed__); },
+      argumentEncode: function (__typed__) { return exports.AcknowledgeRejectionLock.encode(__typed__); },
       resultDecoder: damlTypes.lazyMemo(function () {
         return damlTypes.ContractId(exports.CapacityAsset).decoder;
       }),
@@ -174,13 +169,25 @@ exports.CapacityAssetLock = damlTypes.assembleTemplate(
       }),
       resultEncode: function (__typed__) { return damlTypes.Unit.encode(__typed__); },
     },
-    WithdrawOffer: {
+    FinalizeTransfer: {
       template: function () { return exports.CapacityAssetLock; },
-      choiceName: 'WithdrawOffer',
+      choiceName: 'FinalizeTransfer',
       argumentDecoder: damlTypes.lazyMemo(function () {
-        return exports.WithdrawOffer.decoder;
+        return exports.FinalizeTransfer.decoder;
       }),
-      argumentEncode: function (__typed__) { return exports.WithdrawOffer.encode(__typed__); },
+      argumentEncode: function (__typed__) { return exports.FinalizeTransfer.encode(__typed__); },
+      resultDecoder: damlTypes.lazyMemo(function () {
+        return damlTypes.ContractId(exports.CapacityAsset).decoder;
+      }),
+      resultEncode: function (__typed__) { return damlTypes.ContractId(exports.CapacityAsset).encode(__typed__); },
+    },
+    WithdrawLock: {
+      template: function () { return exports.CapacityAssetLock; },
+      choiceName: 'WithdrawLock',
+      argumentDecoder: damlTypes.lazyMemo(function () {
+        return exports.WithdrawLock.decoder;
+      }),
+      argumentEncode: function (__typed__) { return exports.WithdrawLock.encode(__typed__); },
       resultDecoder: damlTypes.lazyMemo(function () {
         return damlTypes.ContractId(exports.CapacityAsset).decoder;
       }),
@@ -189,12 +196,12 @@ exports.CapacityAssetLock = damlTypes.assembleTemplate(
   },
 );
 
-damlTypes.registerTemplate(exports.CapacityAssetLock, ['ad72da0b720a89a7cccb67faa5ec90cd97cf08eaaa09dfdf185f655810e9491c', '#synccap-v4']);
+damlTypes.registerTemplate(exports.CapacityAssetLock, ['09630ea91293d781ab05547c5ae9ced52c122ffaf7f239f1fabc9f8541a28cdc', '#synccap-v5']);
 
 exports.CapacityFinancials = damlTypes.assembleTemplate(
   {
-    templateId: '#synccap-v4:SynCCap:CapacityFinancials',
-    templateIdWithPackageId: '#ad72da0b720a89a7cccb67faa5ec90cd97cf08eaaa09dfdf185f655810e9491c:SynCCap:CapacityFinancials',
+    templateId: '#synccap-v5:SynCCap:CapacityFinancials',
+    templateIdWithPackageId: '#09630ea91293d781ab05547c5ae9ced52c122ffaf7f239f1fabc9f8541a28cdc:SynCCap:CapacityFinancials',
     keyDecoder: jtv.constant(undefined),
     keyEncode: function () { throw 'EncodeError'; },
     decoder: damlTypes.lazyMemo(function () {
@@ -246,7 +253,7 @@ exports.CapacityFinancials = damlTypes.assembleTemplate(
   },
 );
 
-damlTypes.registerTemplate(exports.CapacityFinancials, ['ad72da0b720a89a7cccb67faa5ec90cd97cf08eaaa09dfdf185f655810e9491c', '#synccap-v4']);
+damlTypes.registerTemplate(exports.CapacityFinancials, ['09630ea91293d781ab05547c5ae9ced52c122ffaf7f239f1fabc9f8541a28cdc', '#synccap-v5']);
 
 exports.DisputePenalty = {
   decoder: damlTypes.lazyMemo(function () {
@@ -259,6 +266,19 @@ exports.DisputePenalty = {
     return {
       proposedRate: damlTypes.Numeric(10).encode(__typed__.proposedRate),
       disputeReason: damlTypes.Text.encode(__typed__.disputeReason),
+    };
+  },
+};
+
+exports.FinalizeTransfer = {
+  decoder: damlTypes.lazyMemo(function () {
+    return jtv.object({
+      newOwner: damlTypes.Party.decoder,
+    });
+  }),
+  encode: function (__typed__) {
+    return {
+      newOwner: damlTypes.Party.encode(__typed__.newOwner),
     };
   },
 };
@@ -280,6 +300,19 @@ exports.InitiatePenalty = {
   },
 };
 
+exports.LockForTransfer = {
+  decoder: damlTypes.lazyMemo(function () {
+    return jtv.object({
+      secondaryBuyer: damlTypes.Party.decoder,
+    });
+  }),
+  encode: function (__typed__) {
+    return {
+      secondaryBuyer: damlTypes.Party.encode(__typed__.secondaryBuyer),
+    };
+  },
+};
+
 exports.MarkReclaimed = {
   decoder: damlTypes.lazyMemo(function () {
     return jtv.object({
@@ -292,8 +325,8 @@ exports.MarkReclaimed = {
 
 exports.PenaltyAgreement = damlTypes.assembleTemplate(
   {
-    templateId: '#synccap-v4:SynCCap:PenaltyAgreement',
-    templateIdWithPackageId: '#ad72da0b720a89a7cccb67faa5ec90cd97cf08eaaa09dfdf185f655810e9491c:SynCCap:PenaltyAgreement',
+    templateId: '#synccap-v5:SynCCap:PenaltyAgreement',
+    templateIdWithPackageId: '#09630ea91293d781ab05547c5ae9ced52c122ffaf7f239f1fabc9f8541a28cdc:SynCCap:PenaltyAgreement',
     keyDecoder: jtv.constant(undefined),
     keyEncode: function () { throw 'EncodeError'; },
     decoder: damlTypes.lazyMemo(function () {
@@ -365,22 +398,7 @@ exports.PenaltyAgreement = damlTypes.assembleTemplate(
   },
 );
 
-damlTypes.registerTemplate(exports.PenaltyAgreement, ['ad72da0b720a89a7cccb67faa5ec90cd97cf08eaaa09dfdf185f655810e9491c', '#synccap-v4']);
-
-exports.ProposeTransfer = {
-  decoder: damlTypes.lazyMemo(function () {
-    return jtv.object({
-      secondaryBuyer: damlTypes.Party.decoder,
-      askingPricePerWafer: damlTypes.Numeric(10).decoder,
-    });
-  }),
-  encode: function (__typed__) {
-    return {
-      secondaryBuyer: damlTypes.Party.encode(__typed__.secondaryBuyer),
-      askingPricePerWafer: damlTypes.Numeric(10).encode(__typed__.askingPricePerWafer),
-    };
-  },
-};
+damlTypes.registerTemplate(exports.PenaltyAgreement, ['09630ea91293d781ab05547c5ae9ced52c122ffaf7f239f1fabc9f8541a28cdc', '#synccap-v5']);
 
 exports.RejectTransfer = {
   decoder: damlTypes.lazyMemo(function () {
@@ -394,13 +412,12 @@ exports.RejectTransfer = {
 
 exports.RejectedTransferLog = damlTypes.assembleTemplate(
   {
-    templateId: '#synccap-v4:SynCCap:RejectedTransferLog',
-    templateIdWithPackageId: '#ad72da0b720a89a7cccb67faa5ec90cd97cf08eaaa09dfdf185f655810e9491c:SynCCap:RejectedTransferLog',
+    templateId: '#synccap-v5:SynCCap:RejectedTransferLog',
+    templateIdWithPackageId: '#09630ea91293d781ab05547c5ae9ced52c122ffaf7f239f1fabc9f8541a28cdc:SynCCap:RejectedTransferLog',
     keyDecoder: jtv.constant(undefined),
     keyEncode: function () { throw 'EncodeError'; },
     decoder: damlTypes.lazyMemo(function () {
       return jtv.object({
-        manufacturer: damlTypes.Party.decoder,
         seller: damlTypes.Party.decoder,
         buyer: damlTypes.Party.decoder,
         assetId: damlTypes.Text.decoder,
@@ -413,7 +430,6 @@ exports.RejectedTransferLog = damlTypes.assembleTemplate(
     }),
     encode: function (__typed__) {
       return {
-        manufacturer: damlTypes.Party.encode(__typed__.manufacturer),
         seller: damlTypes.Party.encode(__typed__.seller),
         buyer: damlTypes.Party.encode(__typed__.buyer),
         assetId: damlTypes.Text.encode(__typed__.assetId),
@@ -451,7 +467,7 @@ exports.RejectedTransferLog = damlTypes.assembleTemplate(
   },
 );
 
-damlTypes.registerTemplate(exports.RejectedTransferLog, ['ad72da0b720a89a7cccb67faa5ec90cd97cf08eaaa09dfdf185f655810e9491c', '#synccap-v4']);
+damlTypes.registerTemplate(exports.RejectedTransferLog, ['09630ea91293d781ab05547c5ae9ced52c122ffaf7f239f1fabc9f8541a28cdc', '#synccap-v5']);
 
 exports.SettlePenalty = {
   decoder: damlTypes.lazyMemo(function () {
@@ -482,13 +498,12 @@ exports.TechnologyNode = {
 
 exports.TransferRFQ = damlTypes.assembleTemplate(
   {
-    templateId: '#synccap-v4:SynCCap:TransferRFQ',
-    templateIdWithPackageId: '#ad72da0b720a89a7cccb67faa5ec90cd97cf08eaaa09dfdf185f655810e9491c:SynCCap:TransferRFQ',
+    templateId: '#synccap-v5:SynCCap:TransferRFQ',
+    templateIdWithPackageId: '#09630ea91293d781ab05547c5ae9ced52c122ffaf7f239f1fabc9f8541a28cdc:SynCCap:TransferRFQ',
     keyDecoder: jtv.constant(undefined),
     keyEncode: function () { throw 'EncodeError'; },
     decoder: damlTypes.lazyMemo(function () {
       return jtv.object({
-        manufacturer: damlTypes.Party.decoder,
         seller: damlTypes.Party.decoder,
         buyer: damlTypes.Party.decoder,
         assetId: damlTypes.Text.decoder,
@@ -497,12 +512,12 @@ exports.TransferRFQ = damlTypes.assembleTemplate(
         askingPricePerWafer: damlTypes.Numeric(10).decoder,
         commitmentStartDate: damlTypes.Text.decoder,
         commitmentEndDate: damlTypes.Text.decoder,
+        lockCid: damlTypes.ContractId(exports.CapacityAssetLock).decoder,
         timestamp: damlTypes.Time.decoder,
       });
     }),
     encode: function (__typed__) {
       return {
-        manufacturer: damlTypes.Party.encode(__typed__.manufacturer),
         seller: damlTypes.Party.encode(__typed__.seller),
         buyer: damlTypes.Party.encode(__typed__.buyer),
         assetId: damlTypes.Text.encode(__typed__.assetId),
@@ -511,6 +526,7 @@ exports.TransferRFQ = damlTypes.assembleTemplate(
         askingPricePerWafer: damlTypes.Numeric(10).encode(__typed__.askingPricePerWafer),
         commitmentStartDate: damlTypes.Text.encode(__typed__.commitmentStartDate),
         commitmentEndDate: damlTypes.Text.encode(__typed__.commitmentEndDate),
+        lockCid: damlTypes.ContractId(exports.CapacityAssetLock).encode(__typed__.lockCid),
         timestamp: damlTypes.Time.encode(__typed__.timestamp),
       };
     },
@@ -550,33 +566,51 @@ exports.TransferRFQ = damlTypes.assembleTemplate(
       }),
       resultEncode: function (__typed__) { return damlTypes.ContractId(exports.RejectedTransferLog).encode(__typed__); },
     },
+    WithdrawOffer: {
+      template: function () { return exports.TransferRFQ; },
+      choiceName: 'WithdrawOffer',
+      argumentDecoder: damlTypes.lazyMemo(function () {
+        return exports.WithdrawOffer.decoder;
+      }),
+      argumentEncode: function (__typed__) { return exports.WithdrawOffer.encode(__typed__); },
+      resultDecoder: damlTypes.lazyMemo(function () {
+        return damlTypes.ContractId(exports.WithdrawnTransferLog).decoder;
+      }),
+      resultEncode: function (__typed__) { return damlTypes.ContractId(exports.WithdrawnTransferLog).encode(__typed__); },
+    },
   },
 );
 
-damlTypes.registerTemplate(exports.TransferRFQ, ['ad72da0b720a89a7cccb67faa5ec90cd97cf08eaaa09dfdf185f655810e9491c', '#synccap-v4']);
+damlTypes.registerTemplate(exports.TransferRFQ, ['09630ea91293d781ab05547c5ae9ced52c122ffaf7f239f1fabc9f8541a28cdc', '#synccap-v5']);
+
+exports.WithdrawLock = {
+  decoder: damlTypes.lazyMemo(function () {
+    return jtv.object({
+    });
+  }),
+  encode: function (__typed__) {
+    return {};
+  },
+};
 
 exports.WithdrawOffer = {
   decoder: damlTypes.lazyMemo(function () {
     return jtv.object({
-      rfqCid: damlTypes.ContractId(exports.TransferRFQ).decoder,
     });
   }),
   encode: function (__typed__) {
-    return {
-      rfqCid: damlTypes.ContractId(exports.TransferRFQ).encode(__typed__.rfqCid),
-    };
+    return {};
   },
 };
 
 exports.WithdrawnTransferLog = damlTypes.assembleTemplate(
   {
-    templateId: '#synccap-v4:SynCCap:WithdrawnTransferLog',
-    templateIdWithPackageId: '#ad72da0b720a89a7cccb67faa5ec90cd97cf08eaaa09dfdf185f655810e9491c:SynCCap:WithdrawnTransferLog',
+    templateId: '#synccap-v5:SynCCap:WithdrawnTransferLog',
+    templateIdWithPackageId: '#09630ea91293d781ab05547c5ae9ced52c122ffaf7f239f1fabc9f8541a28cdc:SynCCap:WithdrawnTransferLog',
     keyDecoder: jtv.constant(undefined),
     keyEncode: function () { throw 'EncodeError'; },
     decoder: damlTypes.lazyMemo(function () {
       return jtv.object({
-        manufacturer: damlTypes.Party.decoder,
         seller: damlTypes.Party.decoder,
         buyer: damlTypes.Party.decoder,
         assetId: damlTypes.Text.decoder,
@@ -588,7 +622,6 @@ exports.WithdrawnTransferLog = damlTypes.assembleTemplate(
     }),
     encode: function (__typed__) {
       return {
-        manufacturer: damlTypes.Party.encode(__typed__.manufacturer),
         seller: damlTypes.Party.encode(__typed__.seller),
         buyer: damlTypes.Party.encode(__typed__.buyer),
         assetId: damlTypes.Text.encode(__typed__.assetId),
@@ -613,4 +646,4 @@ exports.WithdrawnTransferLog = damlTypes.assembleTemplate(
   },
 );
 
-damlTypes.registerTemplate(exports.WithdrawnTransferLog, ['ad72da0b720a89a7cccb67faa5ec90cd97cf08eaaa09dfdf185f655810e9491c', '#synccap-v4']);
+damlTypes.registerTemplate(exports.WithdrawnTransferLog, ['09630ea91293d781ab05547c5ae9ced52c122ffaf7f239f1fabc9f8541a28cdc', '#synccap-v5']);

@@ -11,18 +11,16 @@ import * as pkg9e70a8b3510d617f8a136213f33d6a903a10ca0eeec76bb06ba55d1ed9680f69 
 
 export declare type AcceptTransfer = {
   agreedPricePerWafer: damlTypes.Numeric,
-  lockCid: damlTypes.ContractId<CapacityAssetLock>,
 }
 
 export declare const AcceptTransfer:
   damlTypes.Serializable<AcceptTransfer>
 
-export declare type AcknowledgeRejection = {
-  logCid: damlTypes.ContractId<RejectedTransferLog>,
+export declare type AcknowledgeRejectionLock = {
 }
 
-export declare const AcknowledgeRejection:
-  damlTypes.Serializable<AcknowledgeRejection>
+export declare const AcknowledgeRejectionLock:
+  damlTypes.Serializable<AcknowledgeRejectionLock>
 
 export declare type AssetStatus =
   | 'Active'
@@ -49,12 +47,12 @@ export declare interface CapacityAssetInterface {
   Archive: 
     damlTypes.Choice<CapacityAsset, pkg9e70a8b3510d617f8a136213f33d6a903a10ca0eeec76bb06ba55d1ed9680f69.DA.Internal.Template.Archive, {}, undefined> &
     damlTypes.ChoiceFrom<damlTypes.Template<CapacityAsset, undefined>>;
-  ProposeTransfer: 
-    damlTypes.Choice<CapacityAsset, ProposeTransfer, pkg5aee9b21b8e9a4c4975b5f4c4198e6e6e8469df49e2010820e792f393db870f4.DA.Types.Tuple2<damlTypes.ContractId<TransferRFQ>, damlTypes.ContractId<CapacityAssetLock>>, undefined> &
+  LockForTransfer: 
+    damlTypes.Choice<CapacityAsset, LockForTransfer, damlTypes.ContractId<CapacityAssetLock>, undefined> &
     damlTypes.ChoiceFrom<damlTypes.Template<CapacityAsset, undefined>>;
 }
 export declare const CapacityAsset:
-  damlTypes.Template<CapacityAsset, undefined, '#synccap-v4:SynCCap:CapacityAsset'> &
+  damlTypes.Template<CapacityAsset, undefined, '#synccap-v5:SynCCap:CapacityAsset'> &
   damlTypes.ToInterface<CapacityAsset, never> &
   CapacityAssetInterface
 
@@ -71,18 +69,21 @@ export declare type CapacityAssetLock = {
 }
 
 export declare interface CapacityAssetLockInterface {
-  AcknowledgeRejection: 
-    damlTypes.Choice<CapacityAssetLock, AcknowledgeRejection, damlTypes.ContractId<CapacityAsset>, undefined> &
+  AcknowledgeRejectionLock: 
+    damlTypes.Choice<CapacityAssetLock, AcknowledgeRejectionLock, damlTypes.ContractId<CapacityAsset>, undefined> &
     damlTypes.ChoiceFrom<damlTypes.Template<CapacityAssetLock, undefined>>;
   Archive: 
     damlTypes.Choice<CapacityAssetLock, pkg9e70a8b3510d617f8a136213f33d6a903a10ca0eeec76bb06ba55d1ed9680f69.DA.Internal.Template.Archive, {}, undefined> &
     damlTypes.ChoiceFrom<damlTypes.Template<CapacityAssetLock, undefined>>;
-  WithdrawOffer: 
-    damlTypes.Choice<CapacityAssetLock, WithdrawOffer, damlTypes.ContractId<CapacityAsset>, undefined> &
+  FinalizeTransfer: 
+    damlTypes.Choice<CapacityAssetLock, FinalizeTransfer, damlTypes.ContractId<CapacityAsset>, undefined> &
+    damlTypes.ChoiceFrom<damlTypes.Template<CapacityAssetLock, undefined>>;
+  WithdrawLock: 
+    damlTypes.Choice<CapacityAssetLock, WithdrawLock, damlTypes.ContractId<CapacityAsset>, undefined> &
     damlTypes.ChoiceFrom<damlTypes.Template<CapacityAssetLock, undefined>>;
 }
 export declare const CapacityAssetLock:
-  damlTypes.Template<CapacityAssetLock, undefined, '#synccap-v4:SynCCap:CapacityAssetLock'> &
+  damlTypes.Template<CapacityAssetLock, undefined, '#synccap-v5:SynCCap:CapacityAssetLock'> &
   damlTypes.ToInterface<CapacityAssetLock, never> &
   CapacityAssetLockInterface
 
@@ -105,7 +106,7 @@ export declare interface CapacityFinancialsInterface {
     damlTypes.ChoiceFrom<damlTypes.Template<CapacityFinancials, undefined>>;
 }
 export declare const CapacityFinancials:
-  damlTypes.Template<CapacityFinancials, undefined, '#synccap-v4:SynCCap:CapacityFinancials'> &
+  damlTypes.Template<CapacityFinancials, undefined, '#synccap-v5:SynCCap:CapacityFinancials'> &
   damlTypes.ToInterface<CapacityFinancials, never> &
   CapacityFinancialsInterface
 
@@ -117,6 +118,13 @@ export declare type DisputePenalty = {
 export declare const DisputePenalty:
   damlTypes.Serializable<DisputePenalty>
 
+export declare type FinalizeTransfer = {
+  newOwner: damlTypes.Party,
+}
+
+export declare const FinalizeTransfer:
+  damlTypes.Serializable<FinalizeTransfer>
+
 export declare type InitiatePenalty = {
   assetCid: damlTypes.ContractId<CapacityAsset>,
   penaltyRate: damlTypes.Numeric,
@@ -125,6 +133,13 @@ export declare type InitiatePenalty = {
 
 export declare const InitiatePenalty:
   damlTypes.Serializable<InitiatePenalty>
+
+export declare type LockForTransfer = {
+  secondaryBuyer: damlTypes.Party,
+}
+
+export declare const LockForTransfer:
+  damlTypes.Serializable<LockForTransfer>
 
 export declare type MarkReclaimed = {
 }
@@ -158,17 +173,9 @@ export declare interface PenaltyAgreementInterface {
     damlTypes.ChoiceFrom<damlTypes.Template<PenaltyAgreement, undefined>>;
 }
 export declare const PenaltyAgreement:
-  damlTypes.Template<PenaltyAgreement, undefined, '#synccap-v4:SynCCap:PenaltyAgreement'> &
+  damlTypes.Template<PenaltyAgreement, undefined, '#synccap-v5:SynCCap:PenaltyAgreement'> &
   damlTypes.ToInterface<PenaltyAgreement, never> &
   PenaltyAgreementInterface
-
-export declare type ProposeTransfer = {
-  secondaryBuyer: damlTypes.Party,
-  askingPricePerWafer: damlTypes.Numeric,
-}
-
-export declare const ProposeTransfer:
-  damlTypes.Serializable<ProposeTransfer>
 
 export declare type RejectTransfer = {
 }
@@ -177,7 +184,6 @@ export declare const RejectTransfer:
   damlTypes.Serializable<RejectTransfer>
 
 export declare type RejectedTransferLog = {
-  manufacturer: damlTypes.Party,
   seller: damlTypes.Party,
   buyer: damlTypes.Party,
   assetId: string,
@@ -197,7 +203,7 @@ export declare interface RejectedTransferLogInterface {
     damlTypes.ChoiceFrom<damlTypes.Template<RejectedTransferLog, undefined>>;
 }
 export declare const RejectedTransferLog:
-  damlTypes.Template<RejectedTransferLog, undefined, '#synccap-v4:SynCCap:RejectedTransferLog'> &
+  damlTypes.Template<RejectedTransferLog, undefined, '#synccap-v5:SynCCap:RejectedTransferLog'> &
   damlTypes.ToInterface<RejectedTransferLog, never> &
   RejectedTransferLogInterface
 
@@ -218,7 +224,6 @@ export declare const TechnologyNode:
   damlTypes.Serializable<TechnologyNode> & { readonly keys: TechnologyNode[] } & { readonly [e in TechnologyNode]: e }
 
 export declare type TransferRFQ = {
-  manufacturer: damlTypes.Party,
   seller: damlTypes.Party,
   buyer: damlTypes.Party,
   assetId: string,
@@ -227,6 +232,7 @@ export declare type TransferRFQ = {
   askingPricePerWafer: damlTypes.Numeric,
   commitmentStartDate: string,
   commitmentEndDate: string,
+  lockCid: damlTypes.ContractId<CapacityAssetLock>,
   timestamp: damlTypes.Time,
 }
 
@@ -240,21 +246,28 @@ export declare interface TransferRFQInterface {
   RejectTransfer: 
     damlTypes.Choice<TransferRFQ, RejectTransfer, damlTypes.ContractId<RejectedTransferLog>, undefined> &
     damlTypes.ChoiceFrom<damlTypes.Template<TransferRFQ, undefined>>;
+  WithdrawOffer: 
+    damlTypes.Choice<TransferRFQ, WithdrawOffer, damlTypes.ContractId<WithdrawnTransferLog>, undefined> &
+    damlTypes.ChoiceFrom<damlTypes.Template<TransferRFQ, undefined>>;
 }
 export declare const TransferRFQ:
-  damlTypes.Template<TransferRFQ, undefined, '#synccap-v4:SynCCap:TransferRFQ'> &
+  damlTypes.Template<TransferRFQ, undefined, '#synccap-v5:SynCCap:TransferRFQ'> &
   damlTypes.ToInterface<TransferRFQ, never> &
   TransferRFQInterface
 
+export declare type WithdrawLock = {
+}
+
+export declare const WithdrawLock:
+  damlTypes.Serializable<WithdrawLock>
+
 export declare type WithdrawOffer = {
-  rfqCid: damlTypes.ContractId<TransferRFQ>,
 }
 
 export declare const WithdrawOffer:
   damlTypes.Serializable<WithdrawOffer>
 
 export declare type WithdrawnTransferLog = {
-  manufacturer: damlTypes.Party,
   seller: damlTypes.Party,
   buyer: damlTypes.Party,
   assetId: string,
@@ -270,6 +283,6 @@ export declare interface WithdrawnTransferLogInterface {
     damlTypes.ChoiceFrom<damlTypes.Template<WithdrawnTransferLog, undefined>>;
 }
 export declare const WithdrawnTransferLog:
-  damlTypes.Template<WithdrawnTransferLog, undefined, '#synccap-v4:SynCCap:WithdrawnTransferLog'> &
+  damlTypes.Template<WithdrawnTransferLog, undefined, '#synccap-v5:SynCCap:WithdrawnTransferLog'> &
   damlTypes.ToInterface<WithdrawnTransferLog, never> &
   WithdrawnTransferLogInterface

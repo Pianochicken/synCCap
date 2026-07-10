@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     optimizeDeps: {
-      include: ['@daml.js/synccap-v4-0.1.0']
+      include: ['@daml.js/synccap-v5-0.1.0']
     },
     server: {
       proxy: {

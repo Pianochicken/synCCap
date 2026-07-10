@@ -1,6 +1,6 @@
 {
   "private": true,
-  "name": "@daml.js/synccap-v4-0.1.0",
+  "name": "@daml.js/synccap-v5-0.1.0",
   "version": "3.5.1",
   "license": "UNLICENSED",
   "main": "lib/index.js",

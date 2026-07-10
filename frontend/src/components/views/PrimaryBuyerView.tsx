@@ -447,9 +447,7 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
                           {rfq.payload.assetId}
                         </div>
                         <ContractIdDisplay contractId={rfq.contractId} />
-                        <div className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
-                          Manufacturer:&nbsp;<PartyLabel partyId={rfq.payload.manufacturer} />
-                        </div>
+
                         <div className="text-xs mt-0.5 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
                           Proposed to:&nbsp;<PartyLabel partyId={rfq.payload.buyer} />
                         </div>
