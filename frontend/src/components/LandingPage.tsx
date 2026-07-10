@@ -181,6 +181,10 @@ export const LandingPage: React.FC = () => {
       {/* ─────────────── HERO ─────────────── */}
       <section className="relative z-10 text-center px-6 pt-24 pb-20 max-w-4xl mx-auto">
 
+        <div className="flex justify-center mb-6 animate-in" style={{ animationDelay: '40ms' }}>
+          <img src="/logo.png" alt="synCCap Logo" className="w-64 h-64 object-contain" />
+        </div>
+
         <h1
           className="mt-6 text-5xl md:text-7xl font-black leading-[1.05] tracking-tight animate-in"
           style={{ animationDelay: '80ms', color: 'var(--text-primary)' }}
