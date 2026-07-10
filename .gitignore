@@ -34,8 +34,8 @@ build/
 .env.*.local
 
 # Daml TypeScript codegen output (regenerated from the DAR)
-daml.js/
-ui/daml.js/
+# daml.js/
+# ui/daml.js/
 
 # -----------------------------------------------------------------------------
 # macOS
