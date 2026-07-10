@@ -342,6 +342,7 @@ template TransferRFQ
           seller = seller
           buyer = buyer
           assetId = assetId
+          technologyNode = technologyNode
           waferStartsPerMonth = waferStartsPerMonth
           askingPricePerWafer = askingPricePerWafer
           isReclaimed = False
@@ -357,6 +358,7 @@ template RejectedTransferLog
     seller : Party
     buyer : Party
     assetId : Text
+    technologyNode : TechnologyNode
     waferStartsPerMonth : Int
     askingPricePerWafer : Decimal
     isReclaimed : Bool
@@ -378,6 +380,7 @@ template WithdrawnTransferLog
     seller : Party
     buyer : Party
     assetId : Text
+    technologyNode : TechnologyNode
     waferStartsPerMonth : Int
     askingPricePerWafer : Decimal
     timestamp : Time
@@ -518,6 +521,7 @@ template CapacityAssetLock
           seller = owner
           buyer = rfq.buyer
           assetId = assetId
+          technologyNode = technologyNode
           waferStartsPerMonth = waferStartsPerMonth
           askingPricePerWafer = rfq.askingPricePerWafer
           timestamp = now

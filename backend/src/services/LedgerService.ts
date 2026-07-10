@@ -52,7 +52,7 @@ import {
 } from '../validators';
 
 // Import the package ID from the codegen output
-import { SynCCap } from '@daml.js/synccap-v3-0.1.0';
+import { SynCCap } from '@daml.js/synccap-v4-0.1.0';
 
 // Alias the generated template types for cleaner usage
 type CapacityAssetType = SynCCap.CapacityAsset;
@@ -70,17 +70,18 @@ type PenaltyAgreementType = SynCCap.PenaltyAgreement;
  *   1. Package-hash format: `<packageId>:Module:Template`  — exact package version
  *   2. Package-name format: `#<packageName>:Module:Template` — resolves to latest vetted package
  *
- * We use the package-name format (`#synccap:...`) which is stable across
- * package upgrades and is the recommended format for application code.
+ * We use the stable package identifier form `#package-name:module:template`
+ * This allows the backend to work across package version upgrades automatically.
+ * The Canton API will resolve it to the latest deployed version.
  */
 const TEMPLATE_IDS = {
-  CapacityAsset: '#synccap-v3:SynCCap:CapacityAsset',
-  CapacityFinancials: '#synccap-v3:SynCCap:CapacityFinancials',
-  TransferRFQ: '#synccap-v3:SynCCap:TransferRFQ',
-  CapacityAssetLock: '#synccap-v3:SynCCap:CapacityAssetLock',
-  PenaltyAgreement: '#synccap-v3:SynCCap:PenaltyAgreement',
-  RejectedTransferLog: '#synccap-v3:SynCCap:RejectedTransferLog',
-  WithdrawnTransferLog: '#synccap-v3:SynCCap:WithdrawnTransferLog',
+  CapacityAsset: '#synccap-v4:SynCCap:CapacityAsset',
+  CapacityFinancials: '#synccap-v4:SynCCap:CapacityFinancials',
+  CapacityAssetLock: '#synccap-v4:SynCCap:CapacityAssetLock',
+  TransferRFQ: '#synccap-v4:SynCCap:TransferRFQ',
+  PenaltyAgreement: '#synccap-v4:SynCCap:PenaltyAgreement',
+  RejectedTransferLog: '#synccap-v4:SynCCap:RejectedTransferLog',
+  WithdrawnTransferLog: '#synccap-v4:SynCCap:WithdrawnTransferLog',
 } as const;
 
 // ---------------------------------------------------------------------------

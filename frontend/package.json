@@ -12,7 +12,7 @@
   "dependencies": {
     "@c7-digital/ledger": "^0.0.29",
     "@c7-digital/react": "^0.0.23",
-    "@daml.js/synccap-v3-0.1.0": "file:daml.js/synccap-v3-0.1.0",
+    "@daml.js/synccap-v4-0.1.0": "file:daml.js/synccap-v4-0.1.0",
     "@daml/types": "^3.5.2",
     "axios": "^1.18.0",
     "clsx": "^2.1.1",

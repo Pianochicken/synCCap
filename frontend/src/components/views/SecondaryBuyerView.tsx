@@ -172,7 +172,7 @@ export const SecondaryBuyerView: React.FC = () => {
                           <span className="block text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>
                             Category
                           </span>
-                          <span className="font-semibold" style={{ color: 'var(--primary)' }}>
+                          <span className="font-semibold text-purple-400">
                             {rfq.payload.technologyNode}
                           </span>
                         </div>
@@ -306,21 +306,20 @@ export const SecondaryBuyerView: React.FC = () => {
                       <div className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
                         {asset.payload.assetId}
                       </div>
-                      <ContractIdDisplay contractId={asset.contractId} />
                     </div>
                     <span className="status-badge status-active">Active</span>
                   </div>
+                  <ContractIdDisplay contractId={asset.contractId} />
                   <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
                     Acquired: {ts}
                   </div>
-                  <div className="space-y-1.5 text-sm">
-                    <div className="flex justify-between">
-                      <span style={{ color: 'var(--text-muted)' }}>Category</span>
-                      <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{asset.payload.technologyNode}</span>
-                    </div>
+                  <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                    Category: <span className="font-medium text-purple-400">{asset.payload.technologyNode}</span>
+                  </div>
+                  <div className="space-y-1 text-sm mt-3 pt-3 border-t border-[var(--border-color)]">
                     <div className="flex justify-between">
                       <span style={{ color: 'var(--text-muted)' }}>Monthly Wafers</span>
-                      <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{wafers.toLocaleString()}</span>
+                      <span className="font-mono font-semibold" style={{ color: 'var(--text-primary)' }}>{wafers.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between">
                       <span style={{ color: 'var(--text-muted)' }}>Unit Price / Wafer</span>
@@ -330,7 +329,7 @@ export const SecondaryBuyerView: React.FC = () => {
                       <span style={{ color: 'var(--text-muted)' }}>Monthly Value</span>
                       <span className="font-mono font-semibold text-blue-500">${monthlyValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
-                    <div className="flex justify-between border-t pt-2" style={{ borderColor: 'var(--border-color)' }}>
+                    <div className="flex justify-between">
                       <span style={{ color: 'var(--text-muted)' }}>Total Contract Value</span>
                       <span className="font-bold text-emerald-500">${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>

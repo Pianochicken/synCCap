@@ -5,7 +5,7 @@ import { AuthProvider, useAuth } from '@c7-digital/react/auth';
 import { useNetwork } from '../context/NetworkContext';
 
 // We import the generated package to pass it to versionedRegistry
-import * as synccapPkg from '@daml.js/synccap-v3-0.1.0';
+import * as synccapPkg from '@daml.js/synccap-v4-0.1.0';
 
 function base64UrlEncode(obj: any) {
   return btoa(JSON.stringify(obj))

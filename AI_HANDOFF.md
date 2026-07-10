@@ -75,7 +75,7 @@ The complete Daml smart contract layer for the synCCap platform. All templates, 
 
 ```bash
 dpm build                                                   # Compile contracts
-dpm sandbox --json-api-port 7575 --dar .daml/dist/synccap-v3-0.1.0.dar  # Start sandbox
+dpm sandbox --json-api-port 7575 --dar .daml/dist/synccap-v4-0.1.0.dar  # Start sandbox
 ```
 
 ---
@@ -106,7 +106,7 @@ A production-structured Hono REST API that bridges HTTP clients to the Canton Da
 
 | File | Purpose |
 |:-----|:--------|
-| `backend/package.json` | Dependencies: `@daml.js/synccap-v3-0.1.0`, `hono`, `@hono/node-server`, `@hono/zod-openapi`, `jsonwebtoken`, `winston` |
+| `backend/package.json` | Dependencies: `@daml.js/synccap-v4-0.1.0`, `hono`, `@hono/node-server`, `@hono/zod-openapi`, `jsonwebtoken`, `winston` |
 | `backend/tsconfig.json` | Strict TypeScript with path alias for codegen output |
 | `backend/.env` | Local environment config (not committed) |
 | `backend/.env.example` | Environment variable documentation |
@@ -301,7 +301,7 @@ synCCap/
 
 ```bash
 # Terminal 1 — Canton Ledger Sandbox (must start first)
-dpm sandbox --json-api-port 7575 --dar .daml/dist/synccap-v3-0.1.0.dar
+dpm sandbox --json-api-port 7575 --dar .daml/dist/synccap-v4-0.1.0.dar
 
 # Terminal 2 — Backend REST API
 cd backend && npm run dev

@@ -31,7 +31,7 @@
 
     /* Path Aliases — links the codegen output as a local workspace package */
     "paths": {
-      "@daml.js/synccap-v3-0.1.0": ["./daml.js/synccap-v3-0.1.0/lib/index.d.ts"]
+      "@daml.js/synccap-v4-0.1.0": ["./daml.js/synccap-v4-0.1.0/lib/index.d.ts"]
     },
 
     /* Misc */
