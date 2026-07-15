@@ -94,6 +94,9 @@ export function useBackendQuery() {
 
     ws.onopen = () => {
       console.log('WebSocket connected for real-time updates');
+      if (demoSessionId) {
+        ws.send(JSON.stringify({ type: 'SUBSCRIBE', sessionId: demoSessionId }));
+      }
     };
 
     ws.onmessage = (event) => {

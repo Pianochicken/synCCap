@@ -103,7 +103,7 @@ apiRouter.openapi(
       const data = c.req.valid('json');
       const ctx = getPartyContext(c);
       const result = await ledgerService.createCapacityAsset(ctx, data);
-      broadcastRefresh();
+      broadcastRefresh(c.req.header('X-Session-Id'));
       return c.json({ message: 'CapacityAsset created successfully.', data: result }, 201);
     } catch (err) {
       return mapLedgerError(err, c, 'createCapacityAsset');
@@ -184,7 +184,7 @@ apiRouter.openapi(
       const data = c.req.valid('json');
       const ctx = getPartyContext(c);
       const result = await ledgerService.proposeTransfer(ctx, data);
-      broadcastRefresh();
+      broadcastRefresh(c.req.header('X-Session-Id'));
       return c.json({ message: 'TransferRFQ created.', data: result }, 201);
     } catch (err) {
       return mapLedgerError(err, c, 'proposeTransfer');
@@ -207,7 +207,7 @@ apiRouter.openapi(
       const data = c.req.valid('json');
       const ctx = getPartyContext(c);
       const result = await ledgerService.acceptTransfer(ctx, data);
-      broadcastRefresh();
+      broadcastRefresh(c.req.header('X-Session-Id'));
       return c.json({ message: 'Atomic settlement complete.', data: result }, 200);
     } catch (err) {
       return mapLedgerError(err, c, 'acceptTransfer');
@@ -230,7 +230,7 @@ apiRouter.openapi(
       const data = c.req.valid('json');
       const ctx = getPartyContext(c);
       const result = await ledgerService.withdrawRFQ(ctx, data.rfqContractId);
-      broadcastRefresh();
+      broadcastRefresh(c.req.header('X-Session-Id'));
       return c.json({ message: 'Transfer RFQ withdrawn.', data: result }, 200);
     } catch (err) {
       return mapLedgerError(err, c, 'withdrawRFQ');
@@ -253,7 +253,7 @@ apiRouter.openapi(
       const data = c.req.valid('json');
       const ctx = getPartyContext(c);
       const result = await ledgerService.rejectTransfer(ctx, data.rfqContractId);
-      broadcastRefresh();
+      broadcastRefresh(c.req.header('X-Session-Id'));
       return c.json({ message: 'Transfer RFQ rejected.', data: result }, 200);
     } catch (err) {
       return mapLedgerError(err, c, 'rejectTransfer');
@@ -276,7 +276,7 @@ apiRouter.openapi(
       const data = c.req.valid('json');
       const ctx = getPartyContext(c);
       const result = await ledgerService.acknowledgeRejection(ctx, data.logContractId);
-      broadcastRefresh();
+      broadcastRefresh(c.req.header('X-Session-Id'));
       return c.json({ message: 'Asset restored.', data: result }, 200);
     } catch (err) {
       return mapLedgerError(err, c, 'acknowledgeRejection');
@@ -319,7 +319,7 @@ apiRouter.openapi(
       const data = c.req.valid('json');
       const ctx = getPartyContext(c);
       const result = await ledgerService.initiatePenalty(ctx, data);
-      broadcastRefresh();
+      broadcastRefresh(c.req.header('X-Session-Id'));
       return c.json({ message: 'PenaltyAgreement created.', data: result }, 201);
     } catch (err) {
       return mapLedgerError(err, c, 'initiatePenalty');
@@ -342,7 +342,7 @@ apiRouter.openapi(
       const data = c.req.valid('json');
       const ctx = getPartyContext(c);
       const result = await ledgerService.settlePenalty(ctx, data);
-      broadcastRefresh();
+      broadcastRefresh(c.req.header('X-Session-Id'));
       return c.json({ message: 'Penalty settled successfully.', data: result }, 200);
     } catch (err) {
       return mapLedgerError(err, c, 'settlePenalty');
