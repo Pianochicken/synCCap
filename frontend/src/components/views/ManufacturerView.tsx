@@ -25,7 +25,7 @@ const statusBadge = (status: string) => {
     Active: 'Active',
     PendingTransfer: 'Pending Transfer',
     Transferred: 'Transferred',
-    Penalized: 'Penalized',
+    Penalized: 'Penalised',
   };
   return (
     <span className={`status-badge ${map[status] ?? 'status-inactive'}`}>
@@ -360,7 +360,7 @@ export const ManufacturerView: React.FC<{ partyId: string }> = ({ partyId: manuf
                     </div>
                     <ContractIdDisplay contractId={penalty.contractId} />
                     <div className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
-                      Penalized Party:&nbsp;
+                      Penalised Party:&nbsp;
                       <PartyLabel partyId={penalty.payload.penalizedParty} />
                     </div>
                     <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>

@@ -1,10 +1,10 @@
 # synCCap — AI Handoff Document
 
 > **Last Updated:** Phase 6 In Progress (2026-07-09)
-> **Project:** synCCap — Universal Capacity Tokenization & Privacy-Preserving Settlement
+> **Project:** synCCap — Universal Capacity Tokenisation & Privacy-Preserving Settlement
 > **Hackathon:** Canton Network Hackathon
 > **Demo Vertical:** High-End Semiconductor Foundry Capacity (RWA)
-> **Track:** Private DeFi & Capital Markets · TradeFi, RWA & Tokenized Assets
+> **Track:** Private DeFi & Capital Markets · TradeFi, RWA & Tokenised Assets
 
 ---
 
@@ -19,6 +19,7 @@
 | **Phase 5** | Real-Time Architecture (WebSockets & Optimistic UI) | ✅ Complete |
 | **Phase 5.5** | Devnet Integration & Bug Fixes | ✅ Complete |
 | **Phase 6** | Enterprise Login UX Redesign + Demo Session Isolation | ✅ Complete |
+| **Phase 7** | Production Readiness & UX Polish | ✅ Complete |
 
 ---
 
@@ -337,7 +338,7 @@ cd frontend && npm run dev
 
 #### Redesigned Login Page (`frontend/src/components/LoginPage.tsx`)
 Complete rewrite to a professional B2B SaaS Left-Right split layout:
-- **Left panel (45%)**: Dark gradient brand panel with ambient glow orbs, grid pattern overlay, tech feature highlights (Sub-Transaction Privacy, Atomic Settlement, RWA Tokenization, Real-Time Ledger Events), and hackathon attribution footer.
+- **Left panel (45%)**: Dark gradient brand panel with ambient glow orbs, grid pattern overlay, tech feature highlights (Sub-Transaction Privacy, Atomic Settlement, RWA Tokenisation, Real-Time Ledger Events), and hackathon attribution footer.
 - **Right panel (55%)**: Standard enterprise login UI (Work Email + Password + Show/Hide toggle + Sign In button + Enterprise SSO button) — these are decorative placeholders for production IAM. Below a "Hackathon Demo Quick Access" divider, the three role buttons (Manufacturer / Primary Buyer / Secondary Buyer) allow instant demo login. In Devnet mode, a Session ID badge with a Reset button is shown at the bottom.
 
 #### Demo Session Isolation (Devnet-only)
@@ -374,3 +375,20 @@ Complete rewrite to a professional B2B SaaS Left-Right split layout:
 5. **ACS response format** — Canton 3.5.x returns the ACS as a JSON array (not NDJSON). `LedgerService.queryActiveContracts` handles both formats.
 
 6. **CSS custom properties for theming** — All component colors must use `var(--text-primary)`, `var(--bg-surface)` etc. Do NOT use hardcoded Tailwind dark-only classes like `text-white`, `bg-background`, `border-gray-800` — they will break in light mode.
+
+---
+
+## Phase 7 Summary: Production Readiness & UX Polish ✅
+
+### What Was Built
+
+#### Performance & Concurrency Optimisation
+- **Websocket Session Isolation**: In multi-tenant demo environments, WebSocket broadcasts (`REFRESH_DATA`) are now strictly scoped to the `sessionId`. The frontend sends a `SUBSCRIBE` payload containing the session ID upon connection, and the backend `SessionWebSocket` interface filters broadcasts accordingly. This prevents cross-tenant data leakage and "thundering herd" API calls when one user interacts with the platform.
+- **Jitter Mitigation & Visibility Polling**: 
+  - To prevent simultaneous API flooding from multiple clients, a random jitter (0-5000ms) was added before triggering data refetches upon receiving a WebSocket broadcast.
+  - The fallback 60-second HTTP polling mechanism now checks `document.visibilityState === 'visible'` to conserve backend resources for inactive background tabs.
+
+#### UX Enhancements
+- **Penalty Visibility**: Added a new "Penalised" tab in the `PrimaryBuyerView` Transaction History. Primary Buyers can now track their cancelled capacity commitments with full financial details (including original value and penalty amounts) directly fetched from the `PenaltyAgreement` Canton ledger contract.
+- **Manufacturer Safety**: Implemented a `ConfirmModal` on the "Settle Payment" action within the `ManufacturerView`. This requires explicit confirmation before executing the atomic settlement, preventing accidental ledger mutations.
+- **Localisation**: Standardised UI copy to use British English spelling (e.g., *tokenisation*, *penalised*, *decentralised*).

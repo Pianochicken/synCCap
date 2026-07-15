@@ -79,7 +79,7 @@ const TECH_FEATURES = [
   },
   {
     icon: Layers,
-    title: 'Real-World Asset Tokenization',
+    title: 'Real-World Asset Tokenisation',
     desc: 'Semiconductor foundry capacity as on-chain verifiable contracts.',
   },
   {
@@ -251,7 +251,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
               for semiconductor supply chains.
             </h1>
             <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.5)' }}>
-              synCCap brings privacy-preserving tokenization and atomic settlement
+              synCCap brings privacy-preserving tokenisation and atomic settlement
               to foundry capacity allocation — on the Canton permissioned ledger.
             </p>
           </div>

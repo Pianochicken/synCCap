@@ -23,7 +23,7 @@ const statusBadge = (status: string) => {
     Active: 'Active',
     PendingTransfer: 'Awaiting Response',
     Transferred: 'Transferred',
-    Penalized: 'Penalized',
+    Penalized: 'Penalised',
   };
   return (
     <span className={`status-badge ${map[status] ?? 'status-inactive'}`}>
@@ -585,7 +585,7 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
                   : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
               }`}
             >
-              Penalized ({sortedPenalties.length})
+              Penalised ({sortedPenalties.length})
             </button>
           </div>
 
@@ -932,7 +932,7 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
               {loadingPenalties ? (
                 <div className="text-center text-sm py-2 text-gray-500">Loading...</div>
               ) : sortedPenalties.length === 0 ? (
-                <div className="text-xs text-gray-400 dark:text-gray-500 px-1 italic">No penalized capacity.</div>
+                <div className="text-xs text-gray-400 dark:text-gray-500 px-1 italic">No penalised capacity.</div>
               ) : (
                 <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                   {sortedPenalties.map((penalty) => {

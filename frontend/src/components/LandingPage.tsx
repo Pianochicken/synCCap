@@ -198,7 +198,7 @@ export const LandingPage: React.FC = () => {
           className="mt-6 text-lg md:text-xl leading-relaxed max-w-2xl mx-auto animate-in"
           style={{ animationDelay: '160ms', color: 'var(--text-secondary)' }}
         >
-          synCCap tokenizes Real-World semiconductor fab capacity as on-chain assets and enables
+          synCCap tokenises Real-World semiconductor fab capacity as on-chain assets and enables
           confidential secondary market trading — where buyer margins are mathematically invisible
           to competitors, enforced by the{' '}
           <strong style={{ color: 'var(--primary)' }}>Canton Network's sub-transaction privacy</strong>.

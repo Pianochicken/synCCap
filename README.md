@@ -3,9 +3,9 @@
   <h1>synCCap: Private DeFi & Capital Markets for Real-World Assets</h1>
 </div>
 
-> **Track Focus:** Private DeFi & Capital Markets, TradeFi, RWA & Tokenized Assets
+> **Track Focus:** Private DeFi & Capital Markets, TradeFi, RWA & Tokenised Assets
 
-**synCCap** is an institutional-grade decentralized application that tokenizes the world's most strategic real-world asset (RWA): **High-End Semiconductor Foundry Capacity**. 
+**synCCap** is an institutional-grade decentralised application that tokenises the world's most strategic real-world asset (RWA): **High-End Semiconductor Foundry Capacity**. 
 
 Built on the **Canton Network** using **Daml**, synCCap provides an OTC Dark Pool for secondary market trading of capacity commitments. It strictly enforces sub-transaction privacy to guarantee that highly sensitive commercial data—such as a primary buyer’s cost basis and penalty rates—are mathematically concealed from secondary buyers and market competitors.
 
@@ -55,7 +55,7 @@ Our Daml schema (`daml/SynCCap.daml`) defines five core templates to orchestrate
     *   **Stores:** The original asset details safely while an RFQ is floating in the dark pool, preventing double-spending.
 *   **`PenaltyAgreement` (The OTC Settlement)**
     *   **Stores:** `penaltyRate`, `penaltyAmount`, `cancellationReason`.
-    *   **Privacy:** Strictly bilateral between the Manufacturer and the penalized party. Completely invisible to the dark pool.
+    *   **Privacy:** Strictly bilateral between the Manufacturer and the penalised party. Completely invisible to the dark pool.
 *   **`RejectedTransferLog` & `WithdrawnTransferLog` (The Immutable Audit Trail)**
     *   **Stores:** Details of failed or canceled RFQs, including the `technologyNode` and original asking price.
     *   **Privacy:** Ensures that even if a trade falls through, an immutable, privacy-preserved audit log is maintained for compliance without exposing the underlying asset's root financial data.
@@ -177,7 +177,7 @@ The application dynamically supports both networks! When you open the frontend, 
 
 Why use Canton instead of a public chain (like Ethereum) or a standard database?
 1. **Public Chains leak Business Intelligence (BI):** If Primary Buyer resells capacity to Secondary Buyer on Ethereum, Secondary Buyer can see exactly how much Primary Buyer originally paid Manufacturer. This is unacceptable for enterprise supply chains.
-2. **Centralized DBs lack Trustless Settlement:** A standard database requires all parties to trust the DB operator. Canton provides atomic, trustless cryptographic settlement without a centralized intermediary.
+2. **Centralised DBs lack Trustless Settlement:** A standard database requires all parties to trust the DB operator. Canton provides atomic, trustless cryptographic settlement without a centralised intermediary.
 3. **Canton's Solution:** Canton allows Primary Buyer to prove to Secondary Buyer that the asset is valid and the transfer is authorized, *without* revealing the original `costBasisPerWafer` to Secondary Buyer.
 
 ---
