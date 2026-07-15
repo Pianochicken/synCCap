@@ -100,8 +100,9 @@ export function useBackendQuery() {
       try {
         const data = JSON.parse(event.data);
         if (data.type === 'REFRESH_DATA') {
-          console.log('Received REFRESH_DATA event, fetching latest state...');
-          fetchData();
+          console.log('Received REFRESH_DATA event, fetching latest state with jitter...');
+          // Add 0-1 seconds of random delay to prevent thundering herd problem while keeping UX responsive
+          setTimeout(fetchData, Math.random() * 1000);
         }
       } catch (err) {
         console.error('Failed to parse WebSocket message', err);
@@ -121,7 +122,12 @@ export function useBackendQuery() {
     };
 
     // Fallback polling (every 60 seconds) in case WebSocket disconnects silently
-    const interval = setInterval(fetchData, 60000);
+    const interval = setInterval(() => {
+      // Only fetch data if the tab is currently visible to save resources
+      if (document.visibilityState === 'visible') {
+        fetchData();
+      }
+    }, 60000);
 
     return () => {
       isCleaningUp = true;
