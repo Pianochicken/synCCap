@@ -38,8 +38,8 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
   const fingerprint = primaryPartyId?.split('::')[1] || '';
 
   const {
-    assets, financials, transfers, rejectedLogs, withdrawnLogs,
-    loadingAssets, loadingFinancials, loadingTransfers, loadingRejected, loadingWithdrawn,
+    assets, financials, transfers, rejectedLogs, withdrawnLogs, penalties,
+    loadingAssets, loadingFinancials, loadingTransfers, loadingRejected, loadingWithdrawn, loadingPenalties,
   } = useBackendQuery();
 
   const [loading, setLoading] = useState(false);
@@ -58,8 +58,9 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
   const subLeasedAssets = assets.filter((a) => a.payload.status === 'Transferred' || a.payload.status === 'Sub-Leased').reverse();
   const sortedRejectedLogs = [...rejectedLogs].reverse();
   const sortedWithdrawnLogs = [...withdrawnLogs].reverse();
+  const sortedPenalties = [...penalties].reverse();
 
-  const [activeHistoryTab, setActiveHistoryTab] = useState<'sold' | 'rejected' | 'withdrawn'>('sold');
+  const [activeHistoryTab, setActiveHistoryTab] = useState<'sold' | 'rejected' | 'withdrawn' | 'penalized'>('sold');
 
   const handleWithdrawTransfer = (rfqContractId: string) => {
     setSelectedWithdrawRfqId(rfqContractId);
@@ -576,6 +577,16 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
             >
               Withdrawn ({sortedWithdrawnLogs.length})
             </button>
+            <button
+              onClick={() => setActiveHistoryTab('penalized')}
+              className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                activeHistoryTab === 'penalized'
+                  ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400'
+                  : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+            >
+              Penalized ({sortedPenalties.length})
+            </button>
           </div>
 
           <div className="space-y-4">
@@ -904,6 +915,97 @@ export const PrimaryBuyerView: React.FC<{ partyId: string }> = ({ partyId: prima
                                 <span className="text-[0.65rem] text-emerald-600 dark:text-emerald-400">Asking</span>
                                 <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">${fmt2(transTotalValue)}</span>
                               </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            )}
+
+            {/* Penalties */}
+            {activeHistoryTab === 'penalized' && (
+            <div>
+              {loadingPenalties ? (
+                <div className="text-center text-sm py-2 text-gray-500">Loading...</div>
+              ) : sortedPenalties.length === 0 ? (
+                <div className="text-xs text-gray-400 dark:text-gray-500 px-1 italic">No penalized capacity.</div>
+              ) : (
+                <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                  {sortedPenalties.map((penalty) => {
+                    const ts = penalty.payload.timestamp
+                      ? new Date(penalty.payload.timestamp).toLocaleString(undefined, {
+                          year: 'numeric', month: 'short', day: 'numeric', 
+                          hour: '2-digit', minute: '2-digit', second: '2-digit'
+                        })
+                      : '—';
+                    
+                    const wafers = parseInt(penalty.payload.waferStartsPerMonth ?? '0');
+                    const originalUnitPrice = parseFloat(penalty.payload.costBasisPerWafer ?? '0');
+                    const origMonthlyValue = wafers * originalUnitPrice;
+                    const origTotalValue = origMonthlyValue * 12;
+                    const penaltyAmount = parseFloat(penalty.payload.penaltyAmount ?? '0');
+                    const penaltyRate = parseFloat(penalty.payload.penaltyRate ?? '0') * 100;
+
+                    return (
+                      <div key={penalty.contractId} className="list-item-card py-4 px-4 border-l-2 border-l-orange-400 bg-orange-50/30 dark:bg-orange-900/10">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <div className="font-mono text-sm font-bold">{penalty.payload.assetId}</div>
+                            <ContractIdDisplay contractId={penalty.contractId} />
+                            <div className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+                              Manufacturer:&nbsp;
+                              <PartyLabel partyId={penalty.payload.manufacturer} />
+                            </div>
+                            <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Canceled: {ts}</div>
+                            <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                              Category: <span className="font-medium text-purple-400">{penalty.payload.technologyNode}</span>
+                            </div>
+                          </div>
+                          {penalty.payload.isSettled ? (
+                            <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                              Settled
+                            </span>
+                          ) : (
+                            <span className="text-xs font-medium text-orange-600 dark:text-orange-400">
+                              Pending Settlement
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs mt-4 pt-4 border-t border-[var(--border-color)]">
+                          {/* Wafers */}
+                          <div>
+                            <div style={{ color: 'var(--text-muted)' }}>Monthly Wafers</div>
+                            <div className="font-mono font-medium mt-1 text-sm" style={{ color: 'var(--text-primary)' }}>
+                              {wafers.toLocaleString()}
+                            </div>
+                          </div>
+
+                          {/* Unit Price */}
+                          <div>
+                            <div style={{ color: 'var(--text-muted)' }} className="mb-1">Original Price</div>
+                            <div className="font-mono font-medium mt-1 text-sm" style={{ color: 'var(--text-primary)' }}>
+                              ${fmt2(originalUnitPrice)}
+                            </div>
+                          </div>
+
+                          {/* Total Value */}
+                          <div>
+                            <div style={{ color: 'var(--text-muted)' }} className="mb-1">Total Contract Value</div>
+                            <div className="font-mono font-medium mt-1 text-sm text-gray-500">
+                              ${fmt2(origTotalValue)}
+                            </div>
+                          </div>
+
+                          {/* Penalty */}
+                          <div>
+                            <div style={{ color: 'var(--text-muted)' }} className="mb-1">Penalty ({penaltyRate}%)</div>
+                            <div className="font-mono font-bold mt-1 text-sm text-orange-500">
+                              ${fmt2(penaltyAmount)}
                             </div>
                           </div>
                         </div>

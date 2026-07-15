@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Cpu, Activity, CheckCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { ConfirmModal } from '../ConfirmModal';
 import { ApiService } from '../../api/client';
 import { useBackendQuery } from '../../hooks/useBackendQuery';
 import { PartyLabel } from '../PartyLabel';
@@ -52,6 +53,9 @@ export const ManufacturerView: React.FC<{ partyId: string }> = ({ partyId: manuf
     unitPricePerWafer: '18500.00',
   });
 
+  const [settleModalOpen, setSettleModalOpen] = useState(false);
+  const [selectedSettlePenaltyId, setSelectedSettlePenaltyId] = useState<string | null>(null);
+
   const handleIssueAsset = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -87,19 +91,27 @@ export const ManufacturerView: React.FC<{ partyId: string }> = ({ partyId: manuf
     }
   };
 
-  const handleSettlePenalty = async (contractId: string) => {
+  const openSettleModal = (contractId: string) => {
+    setSelectedSettlePenaltyId(contractId);
+    setSettleModalOpen(true);
+  };
+
+  const confirmSettlePenalty = async () => {
+    if (!selectedSettlePenaltyId) return;
     try {
       setLoading(true);
-      const res = await ApiService.settlePenalty({ penaltyContractId: contractId });
+      const res = await ApiService.settlePenalty({ penaltyContractId: selectedSettlePenaltyId });
       toast.success(
         (t) => <TransactionToast message="Penalty settled successfully!" updateId={res.data?.updateId} toastId={t.id} />,
         { duration: 600000 }
       );
+      setSettleModalOpen(false);
     } catch (err) {
       console.error(err);
       toast.error('Failed to settle penalty.');
     } finally {
       setLoading(false);
+      setSelectedSettlePenaltyId(null);
     }
   };
 
@@ -110,6 +122,19 @@ export const ManufacturerView: React.FC<{ partyId: string }> = ({ partyId: manuf
 
   return (
     <div className="space-y-6">
+      <ConfirmModal
+        isOpen={settleModalOpen}
+        title="Confirm Settlement"
+        message="Are you sure you want to mark this penalty payment as settled? This will permanently close the penalty agreement on the ledger."
+        confirmText="Confirm Settlement"
+        icon="alert"
+        isLoading={loading}
+        onConfirm={confirmSettlePenalty}
+        onCancel={() => {
+          setSettleModalOpen(false);
+          setSelectedSettlePenaltyId(null);
+        }}
+      />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         {/* ── Issue Capacity Form ── */}
@@ -347,7 +372,7 @@ export const ManufacturerView: React.FC<{ partyId: string }> = ({ partyId: manuf
                   </div>
                   {!isSettled ? (
                     <button
-                      onClick={() => handleSettlePenalty(penalty.contractId)}
+                      onClick={() => openSettleModal(penalty.contractId)}
                       disabled={loading}
                       className="btn-primary py-1.5 px-3 text-xs"
                     >
